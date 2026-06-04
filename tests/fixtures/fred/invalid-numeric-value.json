@@ -1,0 +1,21 @@
+{
+  "realtime_start": "2026-01-01",
+  "realtime_end": "2026-01-05",
+  "observation_start": "2026-01-01",
+  "observation_end": "2026-01-05",
+  "count": 2,
+  "observations": [
+    {
+      "date": "2026-01-01",
+      "value": "12.34"
+    },
+    {
+      "date": "2026-01-02",
+      "value": "abc"
+    },
+    {
+      "date": "2026-01-03",
+      "value": ""
+    }
+  ]
+}

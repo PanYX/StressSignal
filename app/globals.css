@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f8f7;
+  --foreground: #0f172a;
+  --radius: 0.5rem;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #eef3f1;
+  --muted-foreground: #475569;
+  --border: #d9e2df;
+  --risk-green: #00856f;
+  --risk-teal: #0f9f9a;
+  --risk-amber: #d97706;
+  --risk-rose: #e11d48;
+  --ink-soft: #334155;
+}
+
+@theme inline {
+  --font-sans: "Inter", "system-ui", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --radius: 0.625rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+  text-rendering: geometricPrecision;
+}
+
+::selection {
+  background: rgba(0, 133, 111, 0.16);
+}
+
+a {
+  text-underline-offset: 3px;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-grid {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}

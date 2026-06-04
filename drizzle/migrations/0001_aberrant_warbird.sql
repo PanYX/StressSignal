@@ -1,0 +1,2 @@
+DROP INDEX "observations_indicator_date_uq";--> statement-breakpoint
+CREATE UNIQUE INDEX "observations_indicator_date_uq" ON "observations" USING btree ("indicator_id","source_external_id","observation_date");

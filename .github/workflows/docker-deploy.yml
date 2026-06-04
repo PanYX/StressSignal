@@ -1,0 +1,170 @@
+name: Docker Publish And Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      deploy:
+        description: "Deploy to server after publishing"
+        required: true
+        default: false
+        type: boolean
+      run_migrations:
+        description: "Run Drizzle migrations and seed indicator metadata before deployment"
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/stresssignal
+  NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://stresssignal.com' }}
+
+jobs:
+  publish:
+    name: Build And Publish Image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      environment: ${{ steps.deploy-env.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve deployment environment
+        id: deploy-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            printf 'environment=%s\n' "${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+          else
+            printf 'environment=production\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        run: |
+          IMAGE_PATH="$(printf '%s/%s' "$REGISTRY" "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')"
+          IMAGE="${IMAGE_PATH}:${GITHUB_SHA}"
+          printf 'image=%s\n' "$IMAGE" >> "$GITHUB_OUTPUT"
+          printf 'latest=%s\n' "${IMAGE_PATH}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ env.NEXT_PUBLIC_SITE_URL }}
+            NEXT_BUILD_ID=${{ github.sha }}
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.latest }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy To Server
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.event_name == 'push' || inputs.deploy == true
+    environment: ${{ needs.publish.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: github.event_name == 'push' || inputs.run_migrations == true
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        if: github.event_name == 'push' || inputs.run_migrations == true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies for database tasks
+        if: github.event_name == 'push' || inputs.run_migrations == true
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        if: github.event_name == 'push' || inputs.run_migrations == true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm run db:migrate
+
+      - name: Seed indicator metadata
+        if: github.event_name == 'push' || inputs.run_migrations == true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm seed:indicators
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy deployment files
+        run: |
+          REMOTE_DIR="${{ secrets.DEPLOY_PATH }}"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "mkdir -p '$REMOTE_DIR/scripts'"
+          scp -i ~/.ssh/deploy_key \
+            docker-compose.yml \
+            docker-compose.staging.yml \
+            docker-compose.production.yml \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$REMOTE_DIR/"
+          scp -i ~/.ssh/deploy_key \
+            scripts/run_deployment.sh \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$REMOTE_DIR/scripts/"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "mkdir -p '$REMOTE_DIR/deploy/nginx'"
+          scp -i ~/.ssh/deploy_key \
+            deploy/nginx/stresssignal.com.conf \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$REMOTE_DIR/deploy/nginx/"
+
+      - name: Run deployment
+        run: |
+          REMOTE_DIR="${{ secrets.DEPLOY_PATH }}"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd '$REMOTE_DIR' && \
+             chmod +x scripts/run_deployment.sh && \
+             ENV='${{ needs.publish.outputs.environment }}' \
+             NEXT_IMAGE='${{ needs.publish.outputs.image }}' \
+             GH_USER='${{ github.actor }}' \
+             GH_PAT='${{ secrets.GHCR_READ_TOKEN }}' \
+             NEXT_PUBLIC_SITE_URL='${{ env.NEXT_PUBLIC_SITE_URL }}' \
+             DATABASE_URL='${{ secrets.DATABASE_URL }}' \
+             FRED_API_KEY='${{ secrets.FRED_API_KEY }}' \
+             CRON_SECRET='${{ secrets.CRON_SECRET }}' \
+             HOST_BIND_IP='${{ vars.HOST_BIND_IP || '127.0.0.1' }}' \
+             HOST_PORT='${{ vars.HOST_PORT || '3014' }}' \
+             scripts/run_deployment.sh"

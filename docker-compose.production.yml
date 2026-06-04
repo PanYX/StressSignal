@@ -1,0 +1,12 @@
+name: stresssignal_production
+
+services:
+  app:
+    ports:
+      - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-3014}:3000"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

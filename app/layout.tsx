@@ -1,0 +1,75 @@
+import type { Metadata } from "next";
+
+import "./globals.css";
+import { SiteShell } from "../components/layout/site-shell";
+import { getCurrentLocale, getDictionary } from "../lib/i18n/dictionary";
+import { getLanguageOption } from "../lib/i18n/locales";
+import { siteMeta } from "../lib/market-risk-metadata";
+import {
+  buildOrganizationSchema,
+  buildWebsiteSchema,
+} from "../lib/seo/structured-data";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteMeta.siteUrl),
+  title: {
+    default: `${siteMeta.title} | ${siteMeta.brand}`,
+    template: `%s | ${siteMeta.brand}`,
+  },
+  description: siteMeta.description,
+  keywords: ["市场风险", "波动率", "VIX", "金融压力", "FRED", "StressSignal"],
+  openGraph: {
+    title: `${siteMeta.title} | ${siteMeta.brand}`,
+    description: siteMeta.description,
+    url: siteMeta.siteUrl,
+    siteName: siteMeta.title,
+    locale: "zh_CN",
+    type: "website",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${siteMeta.title} | ${siteMeta.brand}`,
+    description: siteMeta.description,
+    images: ["/twitter-image"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const locale = await getCurrentLocale();
+  const dictionary = getDictionary(locale);
+  const language = getLanguageOption(locale);
+  const structuredData = JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [buildWebsiteSchema(), buildOrganizationSchema()],
+  });
+
+  return (
+    <html lang={language.htmlLang} suppressHydrationWarning>
+      <body>
+        <SiteShell dictionary={dictionary} locale={locale}>
+          {children}
+        </SiteShell>
+        <script
+          id="global-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: structuredData }}
+        />
+      </body>
+    </html>
+  );
+}
