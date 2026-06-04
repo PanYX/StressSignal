@@ -5,64 +5,66 @@ operating pattern as `privconvert`:
 
 1. GitHub Actions verifies the app.
 2. GitHub Actions builds and publishes a Docker image to GHCR.
-3. The target server pulls the image and runs it with Docker Compose.
-4. The deploy script checks container startup before pruning old images.
+3. GitHub Actions packages the compose, deployment script, and nginx config.
+4. The target server pulls the image and runs it with Docker Compose.
+5. The deploy script checks container startup before pruning old images.
 
 Do not commit `.env.local`, production database URLs, API keys, or cron secrets.
 
 ## GitHub Actions
 
-### `CI`
+### `CI-CD`
 
-Runs on pull requests and pushes to `main`/`master`:
+Runs on pushes to `test` and `main`, and can also be started manually.
+
+Branch mapping follows `privconvert`:
+
+| Branch | Environment | Server path | App port |
+| --- | --- | --- | --- |
+| `test` | `staging` | `/opt/stresssignal/staging` | `5014` |
+| `main` | `production` | `/opt/stresssignal/production` | `3014` |
+
+The build job runs:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm test:unit
-pnpm build
 ```
 
-Set repository variable `NEXT_PUBLIC_SITE_URL` to the public origin, normally:
+Then it builds and pushes the Docker image to GHCR.
 
-```text
-https://stresssignal.com
-```
-
-### `Docker Publish And Deploy`
-
-Runs on pushes to `main`/`master` and can also be started manually.
-
-When deployment runs, the workflow can run:
+Before deployment, the target deploy job runs:
 
 ```bash
 pnpm run db:migrate
 pnpm seed:indicators
 ```
 
-Manual dispatch exposes `run_migrations`; pushes to `main`/`master` run
-migrations before deployment.
+The workflow packages:
+
+```text
+docker-compose.yml
+docker-compose.staging.yml
+docker-compose.production.yml
+scripts/run_deployment.sh
+deploy/nginx/stresssignal.com.conf
+```
 
 Required repository secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `DEPLOY_HOST` | SSH host for the Docker server |
-| `DEPLOY_USER` | SSH user |
-| `DEPLOY_SSH_PRIVATE_KEY` | Private key for deployment SSH |
-| `DEPLOY_PATH` | Directory on the server for compose files and scripts |
-| `GHCR_READ_TOKEN` | Token the server uses to pull private GHCR images |
-| `DATABASE_URL` | Production PostgreSQL DSN |
+| `STAGING_KEY` | Private SSH key for staging deploy |
+| `PROD_KEY` | Private SSH key for production deploy |
+| `GH_PAT` | Token the server uses to pull private GHCR images |
+| `DATABASE_URL` | PostgreSQL DSN used by migrations and runtime |
 | `CRON_SECRET` | Shared secret for internal sync/recompute/revalidate routes |
 | `FRED_API_KEY` | FRED API key, if live sync is enabled |
 
-Optional repository variables:
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | `https://stresssignal.com` | Public canonical origin |
-| `HOST_BIND_IP` | `127.0.0.1` | Host IP Docker binds to |
-| `HOST_PORT` | `3014` | Host port for production compose |
+Deployment constants are defined in `.github/workflows/ci-cd.yml`, matching
+the `privconvert` style: server host, SSH user, SSH port, deploy paths, public
+site URLs, and host ports.
 
 ## Server Runtime
 
@@ -70,7 +72,7 @@ The compose files expect runtime environment variables, not committed env files.
 The GitHub deploy workflow passes them over SSH when invoking:
 
 ```bash
-scripts/run_deployment.sh
+./run_deployment.sh
 ```
 
 Manual server deployment uses the same script:
@@ -84,7 +86,9 @@ NEXT_PUBLIC_SITE_URL=https://stresssignal.com \
 DATABASE_URL='<postgres-dsn>' \
 FRED_API_KEY='<fred-key>' \
 CRON_SECRET='<cron-secret>' \
-scripts/run_deployment.sh
+HOST_BIND_IP=127.0.0.1 \
+HOST_PORT=3014 \
+./run_deployment.sh
 ```
 
 The script pulls the image before stopping the existing container, then runs a

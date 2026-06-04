@@ -1,0 +1,304 @@
+name: CI-CD
+
+env:
+  GH_USER: "PanYX"
+  STAGING_HOST: "152.53.170.2"
+  STAGING_USER: "deployuser"
+  STAGING_SSH_PORT: "2222"
+  STAGING_DEPLOY_PATH: "/opt/stresssignal/staging"
+  PROD_HOST: "152.53.170.2"
+  PROD_USER: "deployuser"
+  PROD_SSH_PORT: "2222"
+  PROD_DEPLOY_PATH: "/opt/stresssignal/production"
+  NEXT_PUBLIC_SITE_URL_STAGING: "https://staging.stresssignal.com"
+  NEXT_PUBLIC_SITE_URL_PRODUCTION: "https://stresssignal.com"
+  HOST_BIND_IP: "127.0.0.1"
+  STAGING_HOST_PORT: "5014"
+  PROD_HOST_PORT: "3014"
+
+on:
+  push:
+    branches: [test, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/test' || github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
+      contents: read
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      image_name: ${{ steps.set_lc_name.outputs.image_name }}
+      deploy_env: ${{ steps.deploy_vars.outputs.deploy_env }}
+      next_public_site_url: ${{ steps.deploy_vars.outputs.next_public_site_url }}
+      host_port: ${{ steps.deploy_vars.outputs.host_port }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set deployment variables
+        id: deploy_vars
+        env:
+          NEXT_PUBLIC_SITE_URL_STAGING: ${{ env.NEXT_PUBLIC_SITE_URL_STAGING }}
+          NEXT_PUBLIC_SITE_URL_PRODUCTION: ${{ env.NEXT_PUBLIC_SITE_URL_PRODUCTION }}
+          STAGING_HOST_PORT: ${{ env.STAGING_HOST_PORT }}
+          PROD_HOST_PORT: ${{ env.PROD_HOST_PORT }}
+        run: |
+          set -euo pipefail
+
+          DEPLOY_ENV="production"
+          NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL_PRODUCTION}"
+          HOST_PORT="${PROD_HOST_PORT}"
+
+          if [[ "${GITHUB_REF}" == "refs/heads/test" ]]; then
+            DEPLOY_ENV="staging"
+            NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL_STAGING}"
+            HOST_PORT="${STAGING_HOST_PORT}"
+          fi
+
+          echo "deploy_env=${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
+          echo "next_public_site_url=${NEXT_PUBLIC_SITE_URL}" >> "$GITHUB_OUTPUT"
+          echo "host_port=${HOST_PORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ steps.deploy_vars.outputs.next_public_site_url }}
+        run: pnpm test:unit
+
+      - name: Set lowercase image name
+        id: set_lc_name
+        run: echo "image_name=$(echo 'ghcr.io/${{ github.repository }}/web' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.set_lc_name.outputs.image_name }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ steps.deploy_vars.outputs.next_public_site_url }}
+            NEXT_BUILD_ID=${{ steps.meta.outputs.version }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  package-artifacts:
+    name: Package deployment artifacts
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p deployment-package/deploy/nginx
+          cp docker-compose.yml deployment-package/
+          cp docker-compose.staging.yml deployment-package/
+          cp docker-compose.production.yml deployment-package/
+          cp scripts/run_deployment.sh deployment-package/
+          cp deploy/nginx/stresssignal.com.conf deployment-package/deploy/nginx/
+          chmod +x deployment-package/run_deployment.sh
+          tar -czvf deploy.tar.gz -C deployment-package .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: deploy.tar.gz
+          retention-days: 7
+
+  deploy-staging:
+    name: Deploy to staging
+    needs: [build, package-artifacts]
+    if: github.ref == 'refs/heads/test'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies for database tasks
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm run db:migrate
+
+      - name: Seed indicator metadata
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm seed:indicators
+
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package
+
+      - name: Upload artifacts to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ env.STAGING_HOST }}
+          username: ${{ env.STAGING_USER }}
+          key: ${{ secrets.STAGING_KEY }}
+          port: ${{ env.STAGING_SSH_PORT }}
+          source: deploy.tar.gz
+          target: ${{ env.STAGING_DEPLOY_PATH }}
+
+      - name: Deploy staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.STAGING_HOST }}
+          username: ${{ env.STAGING_USER }}
+          key: ${{ secrets.STAGING_KEY }}
+          port: ${{ env.STAGING_SSH_PORT }}
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="${{ env.STAGING_DEPLOY_PATH }}"
+            cd "$DEPLOY_PATH"
+            tar -xzvf deploy.tar.gz
+            rm deploy.tar.gz
+
+            export GH_USER='${{ env.GH_USER }}'
+            export GH_PAT='${{ secrets.GH_PAT }}'
+            export NEXT_IMAGE='${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}'
+            export ENV='staging'
+            export NEXT_PUBLIC_SITE_URL='${{ needs.build.outputs.next_public_site_url }}'
+            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
+            export FRED_API_KEY='${{ secrets.FRED_API_KEY }}'
+            export CRON_SECRET='${{ secrets.CRON_SECRET }}'
+            export HOST_BIND_IP='${{ env.HOST_BIND_IP }}'
+            export HOST_PORT='${{ needs.build.outputs.host_port }}'
+
+            ./run_deployment.sh
+
+  deploy-prod:
+    name: Deploy to production
+    needs: [build, package-artifacts]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies for database tasks
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm run db:migrate
+
+      - name: Seed indicator metadata
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm seed:indicators
+
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package
+
+      - name: Upload artifacts to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ env.PROD_HOST }}
+          username: ${{ env.PROD_USER }}
+          key: ${{ secrets.PROD_KEY }}
+          port: ${{ env.PROD_SSH_PORT }}
+          source: deploy.tar.gz
+          target: ${{ env.PROD_DEPLOY_PATH }}
+
+      - name: Deploy production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.PROD_HOST }}
+          username: ${{ env.PROD_USER }}
+          key: ${{ secrets.PROD_KEY }}
+          port: ${{ env.PROD_SSH_PORT }}
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="${{ env.PROD_DEPLOY_PATH }}"
+            cd "$DEPLOY_PATH"
+            tar -xzvf deploy.tar.gz
+            rm deploy.tar.gz
+
+            export GH_USER='${{ env.GH_USER }}'
+            export GH_PAT='${{ secrets.GH_PAT }}'
+            export NEXT_IMAGE='${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}'
+            export ENV='production'
+            export NEXT_PUBLIC_SITE_URL='${{ needs.build.outputs.next_public_site_url }}'
+            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
+            export FRED_API_KEY='${{ secrets.FRED_API_KEY }}'
+            export CRON_SECRET='${{ secrets.CRON_SECRET }}'
+            export HOST_BIND_IP='${{ env.HOST_BIND_IP }}'
+            export HOST_PORT='${{ needs.build.outputs.host_port }}'
+
+            ./run_deployment.sh
