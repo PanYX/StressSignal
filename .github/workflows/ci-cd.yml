@@ -10,8 +10,8 @@ env:
   PROD_USER: "deployuser"
   PROD_SSH_PORT: "2222"
   PROD_DEPLOY_PATH: "/opt/stresssignal/production"
-  NEXT_PUBLIC_SITE_URL_STAGING: "https://staging.stresssignal.com"
-  NEXT_PUBLIC_SITE_URL_PRODUCTION: "https://stresssignal.com"
+  NEXT_PUBLIC_SITE_URL_STAGING: "https://staging.stresssignal.app"
+  NEXT_PUBLIC_SITE_URL_PRODUCTION: "https://stresssignal.app"
   HOST_BIND_IP: "127.0.0.1"
   STAGING_HOST_PORT: "5014"
   PROD_HOST_PORT: "3014"
@@ -140,7 +140,7 @@ jobs:
           cp docker-compose.staging.yml deployment-package/
           cp docker-compose.production.yml deployment-package/
           cp scripts/run_deployment.sh deployment-package/
-          cp deploy/nginx/stresssignal.com.conf deployment-package/deploy/nginx/
+          cp deploy/nginx/stresssignal.app.conf deployment-package/deploy/nginx/
           chmod +x deployment-package/run_deployment.sh
           tar -czvf deploy.tar.gz -C deployment-package .
 

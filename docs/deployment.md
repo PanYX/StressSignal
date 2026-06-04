@@ -48,7 +48,7 @@ docker-compose.yml
 docker-compose.staging.yml
 docker-compose.production.yml
 scripts/run_deployment.sh
-deploy/nginx/stresssignal.com.conf
+deploy/nginx/stresssignal.app.conf
 ```
 
 Required repository secrets:
@@ -82,7 +82,7 @@ ENV=production \
 NEXT_IMAGE=ghcr.io/<owner>/stresssignal:<sha> \
 GH_USER=<github-user> \
 GH_PAT=<ghcr-token> \
-NEXT_PUBLIC_SITE_URL=https://stresssignal.com \
+NEXT_PUBLIC_SITE_URL=https://stresssignal.app \
 DATABASE_URL='<postgres-dsn>' \
 FRED_API_KEY='<fred-key>' \
 CRON_SECRET='<cron-secret>' \
@@ -99,28 +99,28 @@ local container health check against `http://localhost:3000`.
 The nginx reverse-proxy config lives at:
 
 ```text
-deploy/nginx/stresssignal.com.conf
+deploy/nginx/stresssignal.app.conf
 ```
 
 It expects the app container to bind locally on `127.0.0.1:3014`, matching
 `docker-compose.production.yml`. It redirects HTTP and `www` traffic to:
 
 ```text
-https://stresssignal.com
+https://stresssignal.app
 ```
 
 Expected certificate paths:
 
 ```text
-/etc/nginx/ssl/stresssignal.com/stresssignal.com.pem
-/etc/nginx/ssl/stresssignal.com/stresssignal.com.key
+/etc/nginx/ssl/stresssignal.app/stresssignal.app.pem
+/etc/nginx/ssl/stresssignal.app/stresssignal.app.key
 ```
 
 Example server activation:
 
 ```bash
-sudo ln -sf "$DEPLOY_PATH/deploy/nginx/stresssignal.com.conf" \
-  /etc/nginx/conf.d/stresssignal.com.conf
+sudo ln -sf "$DEPLOY_PATH/deploy/nginx/stresssignal.app.conf" \
+  /etc/nginx/conf.d/stresssignal.app.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -130,23 +130,23 @@ sudo systemctl reload nginx
 After deployment:
 
 ```bash
-curl -I https://stresssignal.com
-curl -sS https://stresssignal.com/robots.txt
-curl -sS https://stresssignal.com/sitemap.xml
-curl -sS https://stresssignal.com/api/v1/summary
+curl -I https://stresssignal.app
+curl -sS https://stresssignal.app/robots.txt
+curl -sS https://stresssignal.app/sitemap.xml
+curl -sS https://stresssignal.app/api/v1/summary
 ```
 
 Run live data sync separately or through your scheduler:
 
 ```bash
 curl -X POST -H "Authorization: Bearer ${CRON_SECRET}" \
-  "https://stresssignal.com/api/internal/sync/fred"
+  "https://stresssignal.app/api/internal/sync/fred"
 
 curl -X POST -H "Authorization: Bearer ${CRON_SECRET}" \
-  "https://stresssignal.com/api/internal/compute-snapshots"
+  "https://stresssignal.app/api/internal/compute-snapshots"
 
 curl -X POST -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${CRON_SECRET}" \
   -d '{"tags":["market-risk-dashboard","indicators"]}' \
-  "https://stresssignal.com/api/internal/revalidate"
+  "https://stresssignal.app/api/internal/revalidate"
 ```
