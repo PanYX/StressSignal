@@ -120,8 +120,8 @@ const zh = {
     updated: "更新",
   },
   home: {
-    metaTitle: "现在风险在不在扩散",
-    metaDescription: "用 VIX、VXN、RVX、STLFSI4 和 NFCI 快速判断市场风险是否正在扩散。",
+    metaTitle: "市场风险看板：VIX、金融压力与波动率信号",
+    metaDescription: "用 VIX、VIX3M、VXN、RVX、STLFSI4 和 NFCI 观察市场风险是否从权益波动扩散到金融压力。",
     title: "现在风险在不在扩散？",
     subtitle: "我会先看三件事：权益波动有没有同步抬头、系统性压力有没有跟上、短端波动是不是比中期更贵。",
     productIntro: {
@@ -220,8 +220,8 @@ const zh = {
     },
   },
   indicatorsPage: {
-    metaTitle: "风险指标",
-    metaDescription: "按最新值、变化幅度和 1 年分位查看市场风险指标。",
+    metaTitle: "金融压力与波动率指标库",
+    metaDescription: "查看 VIX、VIX3M、STLFSI4、NFCI 等市场风险指标的最新值、变化幅度和 1 年分位。",
     title: "风险指标",
     subtitle: "先按分位找出最需要看的指标，再进入详情页判断它是局部波动还是风险扩散。",
     readerGuide: {
@@ -290,8 +290,8 @@ const zh = {
       dataPending: "这项还没有可展示样本，先看更新说明和联读说明。",
     },
     tailRisk: {
-      metaTitle: "尾部风险",
-      metaDescription: "用 VVIX、SKEW 和 VVIX/VIX 比值观察表面波动之外的尾部保护需求。",
+      metaTitle: "尾部风险指标：VVIX、SKEW 与保护需求",
+      metaDescription: "用 VVIX、SKEW 和 VVIX/VIX 比值观察表面 VIX 之外的尾部保护需求和隐含风险。",
       title: "尾部风险",
       subtitle: "VIX 不高不代表市场没有担心。这里看的是波动率自己的波动，以及极端下跌保护有没有先涨价。",
       thesisTitle: "先看水下，再看水面",
@@ -311,8 +311,8 @@ const zh = {
       ],
     },
     sentiment: {
-      metaTitle: "情绪与仓位",
-      metaDescription: "用 AAII 与 NAAIM 区分市场嘴上怎么看、钱实际上怎么放。",
+      metaTitle: "市场情绪与仓位指标：AAII 与 NAAIM",
+      metaDescription: "用 AAII 投资者情绪和 NAAIM 主动管理人仓位区分市场观点与实际风险暴露。",
       title: "情绪与仓位",
       subtitle: "AAII 更像散户情绪温度计，NAAIM 更像主动管理人的真实仓位。两者一起看，能分清真乐观、假乐观和真谨慎。",
       thesisTitle: "一边看说法，一边看仓位",
@@ -332,8 +332,8 @@ const zh = {
       ],
     },
     fearGreed: {
-      metaTitle: "Fear & Greed",
-      metaDescription: "自研 Fear & Greed Composite，把波动、保护需求、信用、扩散和动量统一成可解释的分位因子。",
+      metaTitle: "Fear & Greed 指数：可解释的市场风险因子",
+      metaDescription: "用波动率、保护需求、信用压力、风险扩散和动量因子构建可解释的 Fear & Greed Composite。",
       title: "Fear & Greed",
       subtitle: "不死绑外部成品分数。这里把能复核的因子统一转成分位，再告诉你风险偏好是由哪一类因素推动。",
       thesisTitle: "先要解释性，再要分数",
@@ -357,8 +357,8 @@ const zh = {
       ],
     },
     globalRisk: {
-      metaTitle: "全球风险",
-      metaDescription: "用 VSTOXX、India VIX、Nikkei 225 VI 和 VHSI 判断风险是美国本地波动还是跨市场升温。",
+      metaTitle: "全球市场风险看板：欧洲、印度、日本与香港波动率",
+      metaDescription: "用 VSTOXX、India VIX、Nikkei 225 VI 和 VHSI 判断风险是美国本地波动还是全球市场共振。",
       title: "全球风险",
       subtitle: "这页不把各地 VIX 原始点位硬横比，而是统一看 1Y 分位、20D 变化和谁升温最快。",
       thesisTitle: "看风险有没有跨市场扩散",
@@ -464,8 +464,8 @@ const zh = {
     sources: "数据序列",
   },
   articlesPage: {
-    metaTitle: "风险笔记",
-    metaDescription: "用更接近交易者阅读习惯的方式解释 VIX、期限结构和金融压力指标。",
+    metaTitle: "VIX、期限结构与金融压力风险笔记",
+    metaDescription: "阅读 VIX、VIX3M 期限结构、STLFSI4、NFCI 和市场风险扩散的实用解释。",
     title: "风险笔记",
     subtitle: "把指标翻译成可执行的阅读顺序：先看哪里、怎么看错、什么时候该继续深挖。",
     intro: "这些不是新闻稿，而是看盘时反复会用到的解释卡片。先从 VIX 和期限结构读起，再看系统性压力。",
@@ -507,8 +507,8 @@ const zh = {
     relatedArticleCta: "查看联读方法 →",
   },
   howToRead: {
-    metaTitle: "怎么读",
-    metaDescription: "阅读 StressSignal 市场风险看板的方法，避免过度解读单一指标。",
+    metaTitle: "如何阅读市场风险看板",
+    metaDescription: "学习按权益波动、VIX 期限结构和金融压力指标阅读 StressSignal 市场风险看板。",
     title: "如何阅读市场风险看板",
     subtitle: "不是给单一数值贴结论，而是把趋势、共振和边界放在同一张图里。",
     flowTitle: "最短阅读路径",
@@ -582,8 +582,8 @@ const zh = {
     dataCta: "查看数据来源",
   },
   dataSources: {
-    metaTitle: "数据来源",
-    metaDescription: "查看 StressSignal 指标使用的数据序列、更新频率与最近更新时间。",
+    metaTitle: "市场风险数据来源：FRED、CBOE 与公开指标",
+    metaDescription: "查看 StressSignal 使用的 FRED、CBOE 和公开市场风险数据序列、更新频率与最近更新时间。",
     title: "数据来源",
     subtitle: "这里保留每个指标对应的数据序列、更新频率和最近更新时间，方便你核对读数。",
     trustIntro: {
@@ -708,8 +708,8 @@ const zh = {
     },
   },
   about: {
-    metaTitle: "关于",
-    metaDescription: "StressSignal 的目标、方法边界、数据源策略与质量原则。",
+    metaTitle: "关于 StressSignal 市场风险看板",
+    metaDescription: "了解 StressSignal 的市场风险观察目标、方法边界、公开数据源策略与质量原则。",
     title: "关于 StressSignal",
     subtitle: "项目目标、方法边界与公开承诺。",
     sections: [
@@ -1012,8 +1012,8 @@ const en = makeDictionary({
     updated: "Updated",
   },
   home: {
-    metaTitle: "Is risk starting to spread",
-    metaDescription: "Use VIX, VXN, RVX, STLFSI4 and NFCI to see whether market risk is spreading.",
+    metaTitle: "Market Risk Dashboard: VIX, Financial Stress and Volatility Signals",
+    metaDescription: "Track VIX, VIX3M, VXN, RVX, STLFSI4 and NFCI to see whether market risk is spreading beyond equity volatility.",
     title: "Is risk starting to spread?",
     subtitle: "I first check three things: are equity vol gauges moving together, is system stress following, and is near-term vol getting pricier than medium-term?",
     productIntro: {
@@ -1126,8 +1126,8 @@ const en = makeDictionary({
       dataPending: "No displayable sample yet. Start with the source status and cross-read notes.",
     },
     tailRisk: {
-      metaTitle: "Tail risk",
-      metaDescription: "Use VVIX, SKEW and the VVIX/VIX ratio to see tail protection demand beyond spot volatility.",
+      metaTitle: "Tail Risk Indicators: VVIX, SKEW and Volatility Protection",
+      metaDescription: "Use VVIX, SKEW and the VVIX/VIX ratio to track tail protection demand beyond spot VIX.",
       title: "Tail risk",
       subtitle: "A low VIX does not mean nobody is worried. This page looks at volatility-of-volatility and whether crash protection is getting repriced first.",
       thesisTitle: "Look below the surface first",
@@ -1147,8 +1147,8 @@ const en = makeDictionary({
       ],
     },
     sentiment: {
-      metaTitle: "Sentiment and positioning",
-      metaDescription: "Use AAII and NAAIM to separate what investors say from how money is positioned.",
+      metaTitle: "Market Sentiment and Positioning: AAII and NAAIM",
+      metaDescription: "Use AAII investor sentiment and NAAIM active-manager exposure to separate market views from real positioning.",
       title: "Sentiment and positioning",
       subtitle: "AAII is closer to a retail sentiment thermometer. NAAIM is closer to actual active-manager exposure. Together they separate real optimism, fake optimism, and real caution.",
       thesisTitle: "Read words and exposure together",
@@ -1168,8 +1168,8 @@ const en = makeDictionary({
       ],
     },
     fearGreed: {
-      metaTitle: "Fear & Greed",
-      metaDescription: "An internal Fear & Greed Composite built from explainable percentile factors.",
+      metaTitle: "Fear & Greed Index: Explainable Market Risk Factors",
+      metaDescription: "Read an explainable Fear & Greed Composite built from volatility, protection demand, credit stress, breadth and momentum factors.",
       title: "Fear & Greed",
       subtitle: "This page does not bind itself to an external black-box score. It standardizes reviewable factors into percentiles and shows what is driving risk appetite.",
       thesisTitle: "Explainability before the score",
@@ -1193,7 +1193,7 @@ const en = makeDictionary({
       ],
     },
     globalRisk: {
-      metaTitle: "Global risk",
+      metaTitle: "Global Market Risk Dashboard: Europe, India, Japan and Hong Kong Volatility",
       metaDescription: "Use VSTOXX, India VIX, Nikkei 225 VI and VHSI to see whether risk is local to the U.S. or spreading globally.",
       title: "Global risk",
       subtitle: "This page does not compare raw VIX levels across regions. It looks at 1Y percentile, 20D change, and who is warming fastest.",
@@ -1946,8 +1946,8 @@ const ja = makeDictionary({
 
 const enExtras: PartialDeep<Dictionary> = {
   indicatorsPage: {
-    metaTitle: "Risk indicators",
-    metaDescription: "View market-risk indicators by latest reading, recent move, and 1-year percentile.",
+    metaTitle: "Financial Stress and Volatility Indicators",
+    metaDescription: "View VIX, VIX3M, STLFSI4, NFCI and other market-risk indicators by latest reading, recent move and 1-year percentile.",
     title: "Risk indicators",
     subtitle: "Find the indicators that need attention first, then decide whether risk is local or spreading.",
     readerGuide: {
@@ -2036,8 +2036,8 @@ const enExtras: PartialDeep<Dictionary> = {
     sources: "Data series",
   },
   articlesPage: {
-    metaTitle: "Risk notes",
-    metaDescription: "Plain-language notes for VIX, term structure, and financial stress.",
+    metaTitle: "VIX, Term Structure and Financial Stress Notes",
+    metaDescription: "Plain-language notes for VIX, VIX3M term structure, STLFSI4, NFCI and market risk spreading.",
     title: "Risk notes",
     subtitle: "Short notes on what to look at, where people misread signals, and when to dig deeper.",
     intro: "These are not news posts. They are reusable notes for reading the market without overreacting.",
@@ -2079,8 +2079,8 @@ const enExtras: PartialDeep<Dictionary> = {
     relatedArticleCta: "View the cross-check →",
   },
   howToRead: {
-    metaTitle: "How to read",
-    metaDescription: "A simple guide for reading the StressSignal dashboard without overfitting one indicator.",
+    metaTitle: "How to Read a Market Risk Dashboard",
+    metaDescription: "Learn how to read StressSignal by combining equity volatility, VIX term structure and financial stress indicators.",
     title: "How to read the market-risk dashboard",
     subtitle: "Do not force one number into a conclusion. Read trend, confirmation, and limits together.",
     flowTitle: "Shortest reading path",
@@ -2140,8 +2140,8 @@ const enExtras: PartialDeep<Dictionary> = {
     dataCta: "View data sources",
   },
   dataSources: {
-    metaTitle: "Data sources",
-    metaDescription: "Data series, update frequency, and latest refresh notes for StressSignal indicators.",
+    metaTitle: "Market Risk Data Sources: FRED, CBOE and Public Indicators",
+    metaDescription: "Review the FRED, CBOE and public market-risk data series behind StressSignal, including update frequency and latest refresh notes.",
     title: "Data sources",
     subtitle: "Use this page to check the data series, update frequency, and latest refresh behind each indicator.",
     trustIntro: {
@@ -2248,8 +2248,8 @@ const enExtras: PartialDeep<Dictionary> = {
     complianceBody: "The data on this page comes from verifiable public sources. When a source is marked for review or restriction, confirm the license before showing it publicly.",
   },
   about: {
-    metaTitle: "About",
-    metaDescription: "StressSignal’s goal, method boundary, data-source policy, and quality principles.",
+    metaTitle: "About StressSignal Market Risk Dashboard",
+    metaDescription: "Learn StressSignal’s market risk monitoring goal, method boundary, public data-source policy and quality principles.",
     title: "About StressSignal",
     subtitle: "What this product is for, what it avoids, and what it promises.",
     sections: [

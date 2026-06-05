@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">StressSignal logo mark</title>
+  <desc id="desc">A market stress signal line inside a rounded square.</desc>
+  <rect width="512" height="512" rx="112" fill="#0F172A"/>
+  <path d="M112 290H162L193 208L242 348L291 142L337 290H400" stroke="#10B981" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="400" cy="290" r="24" fill="#F59E0B"/>
+  <path d="M112 366H400" stroke="#E2E8F0" stroke-width="22" stroke-linecap="round" opacity="0.85"/>
+</svg>

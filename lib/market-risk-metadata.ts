@@ -25,9 +25,9 @@ const resolveSiteUrl = (): string => {
 };
 
 export const siteMeta = {
-  title: "StressSignal 市场风险看板",
+  title: "StressSignal Market Risk Dashboard",
   description:
-    "用公开数据观察权益波动、金融压力和风险扩散的市场风险看板。",
+    "Track VIX, volatility term structure, financial stress, and cross-market risk signals with public data.",
   siteUrl: resolveSiteUrl(),
   brand: "StressSignal",
 };

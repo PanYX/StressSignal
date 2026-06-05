@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -85,9 +86,13 @@ export function SiteHeader({
           href={hrefWithLocale("/", locale)}
           className="flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-950 hover:text-slate-700"
         >
-          <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/30">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          </span>
+          <Image
+            src="/logo-mark.svg"
+            alt=""
+            width={24}
+            height={24}
+            className="h-6 w-6 rounded-md"
+          />
           {siteMeta.brand}
         </Link>
         <div className="flex min-w-0 w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">

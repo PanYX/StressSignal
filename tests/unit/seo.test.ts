@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import sitemap from "../../app/sitemap";
+import manifest from "../../app/manifest";
+import robots from "../../app/robots";
 import { siteMeta } from "../../lib/market-risk-metadata";
 import {
   buildArticleMetadata,
@@ -10,6 +12,7 @@ import {
   buildArticleSchema,
   buildBreadcrumbSchema,
   buildDatasetSchema,
+  buildOrganizationSchema,
   buildWebsiteSchema,
 } from "../../lib/seo/structured-data";
 
@@ -110,10 +113,23 @@ describe("seo helpers", () => {
       { name: "Articles", path: "/articles" },
       { name: "Article Title", path: "/articles/what-is-vix" },
     ]);
+    const organization = buildOrganizationSchema();
 
     expect(() => JSON.parse(JSON.stringify(dataset))).not.toThrow();
     expect(() => JSON.parse(JSON.stringify(article))).not.toThrow();
     expect(() => JSON.parse(JSON.stringify(breadcrumb))).not.toThrow();
+    expect(() => JSON.parse(JSON.stringify(organization))).not.toThrow();
+    expect(organization.logo).toMatchObject({
+      "@type": "ImageObject",
+      url: `${siteBase}/logo-mark.svg`,
+    });
+    expect(article.publisher).toMatchObject({
+      "@type": "Organization",
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteBase}/logo-mark.svg`,
+      },
+    });
   });
 
   it("website schema does not advertise an unavailable site search route", () => {
@@ -134,5 +150,28 @@ describe("seo helpers", () => {
     expect(urls).toContain(`${siteBase}/markets/india`);
     expect(urls).toContain(`${siteBase}/markets/japan`);
     expect(urls).toContain(`${siteBase}/markets/hong-kong`);
+  });
+
+  it("robots allows render assets while blocking internal API routes", () => {
+    const policy = robots();
+    const firstRule = Array.isArray(policy.rules) ? policy.rules[0] : policy.rules;
+
+    expect(firstRule).toMatchObject({
+      allow: "/",
+    });
+    expect(firstRule?.disallow).toContain("/api/");
+    expect(firstRule?.disallow).not.toContain("/_next/");
+    expect(policy.sitemap).toBe(`${siteBase}/sitemap.xml`);
+  });
+
+  it("manifest exposes install and favicon assets", () => {
+    const appManifest = manifest();
+    const iconSources = appManifest.icons?.map((icon) => icon.src) ?? [];
+
+    expect(appManifest.name).toBe("StressSignal Market Risk Dashboard");
+    expect(appManifest.short_name).toBe("StressSignal");
+    expect(iconSources).toEqual(
+      expect.arrayContaining(["/icon", "/apple-icon", "/logo-mark.svg"]),
+    );
   });
 });

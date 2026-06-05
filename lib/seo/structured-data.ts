@@ -12,6 +12,8 @@ const normalizePath = (path: string): string => {
 const toAbsolute = (path: string): string =>
   `${siteMeta.siteUrl.replace(/\/$/, "")}${normalizePath(path) === "/" ? "" : normalizePath(path)}`;
 
+const logoUrl = () => toAbsolute("/logo-mark.svg");
+
 type Schema = Record<string, unknown>;
 
 type BreadcrumbInput = {
@@ -38,6 +40,12 @@ export function buildOrganizationSchema(): Schema {
     "@id": `${siteMeta.siteUrl.replace(/\/$/, "")}/#organization`,
     name: siteMeta.brand,
     url: siteMeta.siteUrl,
+    logo: {
+      "@type": "ImageObject",
+      url: logoUrl(),
+      width: 512,
+      height: 512,
+    },
     description:
       "Market-risk observability project for explainable public risk dashboards.",
   };
@@ -112,6 +120,12 @@ export function buildArticleSchema({
       "@type": "Organization",
       name: siteMeta.brand,
       url: siteMeta.siteUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: logoUrl(),
+        width: 512,
+        height: 512,
+      },
     },
     mainEntityOfPage: {
       "@type": "WebPage",

@@ -17,7 +17,30 @@ export const metadata: Metadata = {
     template: `%s | ${siteMeta.brand}`,
   },
   description: siteMeta.description,
+  applicationName: siteMeta.brand,
   keywords: ["市场风险", "波动率", "VIX", "金融压力", "FRED", "StressSignal"],
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      {
+        url: "/icon",
+        sizes: "32x32",
+        type: "image/png",
+      },
+      {
+        url: "/logo-mark.svg",
+        sizes: "512x512",
+        type: "image/svg+xml",
+      },
+    ],
+    apple: [
+      {
+        url: "/apple-icon",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
   openGraph: {
     title: `${siteMeta.title} | ${siteMeta.brand}`,
     description: siteMeta.description,
