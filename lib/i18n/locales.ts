@@ -1,4 +1,4 @@
-export const DEFAULT_LOCALE = "zh" as const;
+export const DEFAULT_LOCALE = "en" as const;
 export const LOCALE_COOKIE = "stresssignal-locale";
 export const LOCALE_HEADER = "x-stresssignal-locale";
 

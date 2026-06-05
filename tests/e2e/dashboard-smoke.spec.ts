@@ -26,11 +26,11 @@ test.describe("market risk dashboard smoke", () => {
   test("home summary and metadata are visible", async ({ page }, testInfo) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "现在风险在不在扩散？", exact: true })).toBeVisible();
-    await expect(page.getByText("今日风险读数")).toBeVisible();
-    await expect(page.getByText("数据序列：", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Is risk starting to spread?", exact: true })).toBeVisible();
+    await expect(page.getByText("Today's risk read")).toBeVisible();
+    await expect(page.getByText("Data series: ", { exact: true })).toBeVisible();
     await expect(page.locator("meta[name='description']")).toHaveCount(1);
-    await expect(page.getByText("风险提示：")).toBeVisible();
+    await expect(page.getByText("Risk note:")).toBeVisible();
     await assertCanonicalPath(page, "/");
 
     await captureScreenshot("home", page, "smoke", testInfo);
@@ -40,16 +40,16 @@ test.describe("market risk dashboard smoke", () => {
     await page.goto("/indicators/vix");
 
     await expect(
-      page.getByRole("heading", { name: /VIX 指标详情|Vix 指标详情/i }),
+      page.getByRole("heading", { name: /VIX detail/i }),
     ).toBeVisible();
-    await expect(page.getByText("当前范围：1Y")).toBeVisible();
-    await expect(page.getByText("数据序列：", { exact: true })).toBeVisible();
+    await expect(page.getByText("Range: 1Y")).toBeVisible();
+    await expect(page.getByText("Data series: ", { exact: true })).toBeVisible();
 
     const rangeTab3m = page.locator("a[href*='range=3M']").first();
     await rangeTab3m.click();
     await expect(page).toHaveURL(/range=3M/);
-    await expect(page.getByText("当前范围：3M")).toBeVisible();
-    await expect(page.getByText("风险提示：")).toBeVisible();
+    await expect(page.getByText("Range: 3M")).toBeVisible();
+    await expect(page.getByText("Risk note:")).toBeVisible();
     await expect(page.getByRole("heading", { name: /^VIX$/ })).toBeVisible();
 
     await captureScreenshot("indicator-vix", page, "smoke", testInfo);
@@ -58,16 +58,16 @@ test.describe("market risk dashboard smoke", () => {
   test("articles list and detail include disclaimer marker", async ({ page }, testInfo) => {
     await page.goto("/articles");
 
-    await expect(page.getByRole("heading", { name: "风险笔记" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /什么是 VIX/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Risk notes" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /What VIX really measures/ })).toBeVisible();
 
     await page
-      .getByRole("link", { name: /什么是 VIX/ })
+      .getByRole("link", { name: /What VIX really measures/ })
       .click();
     await expect(page).toHaveURL(/\/articles\/what-is-vix(?:\?.*)?$/);
 
-    await expect(page.getByRole("heading", { name: "什么是 VIX：它到底在衡量什么" })).toBeVisible();
-    await expect(page.locator("article")).toContainText("数据来源说明");
+    await expect(page.getByRole("heading", { name: "What VIX really measures" })).toBeVisible();
+    await expect(page.locator("article")).toContainText("Data note");
     await expect(page.locator('[data-testid="article-disclaimer-marker"]')).toBeVisible();
     await assertCanonicalPath(page, "/articles/what-is-vix");
     await expect(page.locator("meta[name='description']")).toHaveCount(1);
@@ -78,13 +78,35 @@ test.describe("market risk dashboard smoke", () => {
   test("data source page opens and shows data series", async ({ page }, testInfo) => {
     await page.goto("/data-sources");
 
-    await expect(page.getByRole("heading", { name: "数据来源" })).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "数据序列" })).toBeVisible();
-    await expect(page.getByText("怎么核对这页")).toBeVisible();
-    await expect(page.getByText("免责声明：")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Data sources" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Data series" })).toBeVisible();
+    await expect(page.getByText("How data becomes indicators")).toBeVisible();
+    await expect(page.getByText("Disclaimer:")).toBeVisible();
 
     await assertCanonicalPath(page, "/data-sources");
     await captureScreenshot("data-sources", page, "smoke", testInfo);
+  });
+
+  test("SEO tool pages render their live interpretation surfaces", async ({ page }, testInfo) => {
+    await page.goto("/vix-term-structure");
+
+    await expect(page.getByRole("heading", { name: "VIX Term Structure Today" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "VIX/VIX3M proxy history" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Contango, backwardation and the volatility term structure" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Source trail" })).toBeVisible();
+    await assertCanonicalPath(page, "/vix-term-structure");
+
+    await captureScreenshot("vix-term-structure", page, "smoke", testInfo);
+
+    await page.goto("/financial-conditions-index");
+
+    await expect(page.getByRole("heading", { name: "Financial Conditions Index" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Financial conditions and stress history" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Financial conditions are not the same as one-day market fear" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Source trail" })).toBeVisible();
+    await assertCanonicalPath(page, "/financial-conditions-index");
+
+    await captureScreenshot("financial-conditions-index", page, "smoke", testInfo);
   });
 });
 

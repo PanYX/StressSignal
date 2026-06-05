@@ -18,7 +18,14 @@ export const metadata: Metadata = {
   },
   description: siteMeta.description,
   applicationName: siteMeta.brand,
-  keywords: ["市场风险", "波动率", "VIX", "金融压力", "FRED", "StressSignal"],
+  keywords: [
+    "market risk dashboard",
+    "VIX term structure",
+    "financial stress index",
+    "financial conditions index",
+    "volatility signals",
+    "StressSignal",
+  ],
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -46,7 +53,7 @@ export const metadata: Metadata = {
     description: siteMeta.description,
     url: siteMeta.siteUrl,
     siteName: siteMeta.title,
-    locale: "zh_CN",
+    locale: "en_US",
     type: "website",
     images: [
       {

@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 import sitemap from "../../app/sitemap";
 import { GET as adsTxt } from "../../app/ads.txt/route";
 import manifest from "../../app/manifest";
+import { proxy } from "../../proxy";
 import robots from "../../app/robots";
+import { hrefWithLocale } from "../../lib/i18n/locale-url";
 import { siteMeta } from "../../lib/market-risk-metadata";
 import {
   buildArticleMetadata,
@@ -56,12 +59,22 @@ describe("seo helpers", () => {
     const metadata = buildPageMetadata({
       title: "Test Page",
       description: "Test description.",
-      locale: "en",
+      locale: "zh",
       path: "/about",
     });
 
     expect(metadata.alternates?.canonical).toBe(`${siteBase}/about`);
     expect(metadata.robots).toMatchObject({ index: false, follow: true });
+  });
+
+  it("keeps default English internal links clean while preserving non-default locale queries", () => {
+    expect(hrefWithLocale("/indicators/vix", "en")).toBe("/indicators/vix");
+    expect(hrefWithLocale("/indicators?sort=latest#table", "en")).toBe(
+      "/indicators?sort=latest#table",
+    );
+    expect(hrefWithLocale("/indicators?sort=latest#table", "zh")).toBe(
+      "/indicators?sort=latest&lang=zh#table",
+    );
   });
 
   it("buildArticleMetadata sets article-specific open graph type and timestamps", () => {
@@ -124,8 +137,9 @@ describe("seo helpers", () => {
       "@type": "ImageObject",
       url: `${siteBase}/logo-mark.svg`,
     });
-    expect(organization.inLanguage).toBe("zh-CN");
+    expect(organization.inLanguage).toBe("en-US");
     expect(buildOrganizationSchema("en").inLanguage).toBe("en-US");
+    expect(buildOrganizationSchema("zh").inLanguage).toBe("zh-CN");
     expect(buildWebsiteSchema("en").inLanguage).toBe("en-US");
     expect(article.publisher).toMatchObject({
       "@type": "Organization",
@@ -143,6 +157,15 @@ describe("seo helpers", () => {
     expect(schema).not.toHaveProperty("potentialAction");
   });
 
+  it("redirects explicit default language query URLs to clean English canonicals", () => {
+    const request = new NextRequest(`${siteBase}/about?utm_source=test&lang=en`);
+    const response = proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`${siteBase}/about?utm_source=test`);
+    expect(response.headers.get("set-cookie")).toContain("stresssignal-locale=en");
+  });
+
   it("sitemap includes indexable risk-layer and regional market pages", async () => {
     const urls = (await sitemap()).map((entry) => entry.url);
 
@@ -150,6 +173,8 @@ describe("seo helpers", () => {
     expect(urls).toContain(`${siteBase}/sentiment`);
     expect(urls).toContain(`${siteBase}/fear-greed`);
     expect(urls).toContain(`${siteBase}/global-risk`);
+    expect(urls).toContain(`${siteBase}/vix-term-structure`);
+    expect(urls).toContain(`${siteBase}/financial-conditions-index`);
     expect(urls).toContain(`${siteBase}/markets/europe`);
     expect(urls).toContain(`${siteBase}/markets/india`);
     expect(urls).toContain(`${siteBase}/markets/japan`);

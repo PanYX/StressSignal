@@ -7,6 +7,8 @@ export const RISK_LAYER_ROUTES = [
 
 export const LEARNING_ROUTES = [
   { key: "howToRead", href: "/how-to-read" },
+  { key: "vixTermStructure", href: "/vix-term-structure" },
+  { key: "financialConditions", href: "/financial-conditions-index" },
   { key: "articles", href: "/articles" },
 ] as const;
 

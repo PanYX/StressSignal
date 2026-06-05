@@ -82,7 +82,7 @@ describe("commentary templates", () => {
 
     const rendered = renderCommentary(evaluateCommentaryBranches(input));
     assert.deepStrictEqual(rendered.branches, []);
-    assert.ok(rendered.summary.includes("以下序列样本不完整"));
+    assert.ok(rendered.summary.includes("These series are incomplete"));
     assert.ok(rendered.missing.includes("vxn"));
   });
 });

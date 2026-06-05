@@ -1,7 +1,11 @@
-import type { Locale } from "./locales";
+import { DEFAULT_LOCALE, type Locale } from "./locales";
 
 export function hrefWithLocale(href: string, locale: Locale): string {
   if (!href.startsWith("/") || href.startsWith("//")) {
+    return href;
+  }
+
+  if (locale === DEFAULT_LOCALE) {
     return href;
   }
 

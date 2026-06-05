@@ -36,6 +36,8 @@ export const requiredPublicRoutes = [
   { label: "首页", href: "/" },
   { label: "指标", href: "/indicators" },
   { label: "怎么读", href: "/how-to-read" },
+  { label: "VIX Term Structure", href: "/vix-term-structure" },
+  { label: "Financial Conditions Index", href: "/financial-conditions-index" },
   { label: "风险笔记", href: "/articles" },
   { label: "数据源", href: "/data-sources" },
   { label: "关于", href: "/about" },

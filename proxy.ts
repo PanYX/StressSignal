@@ -19,6 +19,20 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
 
+  if (queryLocale === DEFAULT_LOCALE) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.searchParams.delete("lang");
+
+    const response = NextResponse.redirect(redirectUrl);
+    response.cookies.set(LOCALE_COOKIE, DEFAULT_LOCALE, {
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+      sameSite: "lax",
+    });
+
+    return response;
+  }
+
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
