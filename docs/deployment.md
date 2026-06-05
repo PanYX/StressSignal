@@ -5,11 +5,12 @@ operating pattern as `privconvert`:
 
 1. GitHub Actions verifies the app.
 2. GitHub Actions builds and publishes a Docker image to GHCR.
-3. If R2 is configured, GitHub Actions uploads `/_next/static` assets to
-   Cloudflare R2 and builds the app with an asset prefix.
-4. GitHub Actions packages the compose, deployment script, and nginx config.
-5. The target server pulls the image and runs it with Docker Compose.
-6. The deploy script checks container startup before pruning old images.
+3. GitHub Actions builds the app with an R2 asset prefix.
+4. GitHub Actions uploads `/_next/static` assets to Cloudflare R2 before
+   deploying the server container.
+5. GitHub Actions packages the compose, deployment script, and nginx config.
+6. The target server pulls the image and runs it with Docker Compose.
+7. The deploy script checks container startup before pruning old images.
 
 Do not commit `.env.local`, production database URLs, API keys, or cron secrets.
 
@@ -26,8 +27,7 @@ Branch mapping follows `privconvert`:
 | `test` | `staging` | `/opt/stresssignal/staging` | `5014` |
 | `main` | `production` | `/opt/stresssignal/production` | `3014` |
 
-Static Next.js chunks use the same R2 pattern as `privconvert` when the R2
-secrets are present:
+Static Next.js chunks use the same R2 pattern as `privconvert`:
 
 | Branch | Asset prefix | R2 bucket |
 | --- | --- | --- |
@@ -78,10 +78,8 @@ Required repository secrets:
 
 Deployment constants are defined in `.github/workflows/ci-cd.yml`, matching
 the `privconvert` style: server host, SSH user, SSH port, deploy paths, public
-site URLs, asset prefixes, R2 buckets, and host ports. If all three R2 secrets
-are absent, the workflow disables R2 and serves static chunks from the app. If
-only some R2 secrets are present, the workflow fails instead of deploying a
-partially configured build.
+site URLs, asset prefixes, R2 buckets, and host ports. R2 secrets are required
+for deployment because the built app references the R2 asset prefix.
 
 ## Server Runtime
 
@@ -121,9 +119,9 @@ Next static chunks under:
 https://oss.stresssignal.app/fe/_next/static/...
 ```
 
-After building and pushing the image, GitHub Actions creates a temporary
-container, copies `/app/.next/static` into `.r2-next-static`, deletes source-map
-files, and runs:
+During the deploy job, GitHub Actions pulls the built image, creates a
+temporary container, copies `/app/.next/static` into `.r2-next-static`, deletes
+source-map files, and runs:
 
 ```bash
 bash scripts/upload_r2_next_static.sh
