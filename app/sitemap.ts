@@ -2,8 +2,10 @@ import type { MetadataRoute } from "next";
 
 import { requiredPublicRoutes, siteMeta } from "../lib/market-risk-metadata";
 import { MVP_INDICATOR_SLUGS } from "../lib/indicators/configs";
-import { getAllArticleSlugs } from "../lib/content/articles";
+import { getAllArticlesMeta } from "../lib/content/articles";
 import { RISK_LAYER_ROUTES } from "../lib/navigation";
+
+const STATIC_LAST_MODIFIED = new Date("2026-06-05T00:00:00.000Z");
 
 const MARKET_REGION_ROUTES = [
   "/markets/europe",
@@ -15,9 +17,11 @@ const MARKET_REGION_ROUTES = [
 const toAbsolute = (path: string) =>
   `${siteMeta.siteUrl.replace(/\/$/, "")}${path === "/" ? "" : path}`;
 
+const toDate = (value: string | undefined): Date =>
+  value ? new Date(`${value}T00:00:00.000Z`) : STATIC_LAST_MODIFIED;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-  const articleSlugs = await getAllArticleSlugs();
+  const articles = await getAllArticlesMeta();
 
   const routeSet = new Set<string>();
   for (const route of requiredPublicRoutes) {
@@ -35,14 +39,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const indicatorSlug of MVP_INDICATOR_SLUGS) {
     routeSet.add(`/indicators/${indicatorSlug}`);
   }
-  for (const slug of articleSlugs) {
-    routeSet.add(`/articles/${slug}`);
+  const articleEntries = articles.map((article) => ({
+    path: `/articles/${article.slug}`,
+    lastModified: toDate(article.frontmatter.updatedAt ?? article.frontmatter.publishedAt),
+  }));
+  for (const article of articleEntries) {
+    routeSet.add(article.path);
   }
+  const articleLastModifiedByPath = new Map(
+    articleEntries.map((entry) => [entry.path, entry.lastModified]),
+  );
 
   return [...routeSet].map((path) => ({
     url: toAbsolute(path),
-    lastModified: now,
-    changeFrequency: path === "/" ? "daily" : "daily",
-    priority: path === "/" ? 1 : 0.8,
+    lastModified: articleLastModifiedByPath.get(path) ?? STATIC_LAST_MODIFIED,
+    changeFrequency: path === "/" || path.startsWith("/indicators") ? "daily" : "weekly",
+    priority: path === "/" ? 1 : path.startsWith("/articles/") ? 0.7 : 0.8,
   }));
 }

@@ -66,6 +66,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  verification: {
+    google: "SgXSQ_p4quBXEBEhGbHFsHLPGtvVcLoykDmh8rU5ZCc",
+  },
 };
 
 export default async function RootLayout({
@@ -78,7 +81,7 @@ export default async function RootLayout({
   const language = getLanguageOption(locale);
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
-    "@graph": [buildWebsiteSchema(), buildOrganizationSchema()],
+    "@graph": [buildWebsiteSchema(locale), buildOrganizationSchema(locale)],
   });
 
   return (

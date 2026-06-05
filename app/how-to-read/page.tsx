@@ -34,6 +34,7 @@ export default async function HowToReadPage() {
     path: "/how-to-read",
     tags: getLocalizedArticleTags(locale, ["市场风险", "波动率", "VIX", "VXV", "NFCI", "STLFSI4", "methodology"]),
     canonicalUrl: toAbsoluteUrl("/how-to-read"),
+    locale,
   });
 
   return (

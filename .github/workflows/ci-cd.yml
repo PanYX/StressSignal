@@ -222,6 +222,7 @@ jobs:
             export DATABASE_URL='${{ secrets.DATABASE_URL }}'
             export FRED_API_KEY='${{ secrets.FRED_API_KEY }}'
             export CRON_SECRET='${{ secrets.CRON_SECRET }}'
+            export GOOGLE_ADSENSE_PUBLISHER_ID='${{ secrets.GOOGLE_ADSENSE_PUBLISHER_ID }}'
             export HOST_BIND_IP='${{ env.HOST_BIND_IP }}'
             export HOST_PORT='${{ needs.build.outputs.host_port }}'
 
@@ -298,6 +299,7 @@ jobs:
             export DATABASE_URL='${{ secrets.DATABASE_URL }}'
             export FRED_API_KEY='${{ secrets.FRED_API_KEY }}'
             export CRON_SECRET='${{ secrets.CRON_SECRET }}'
+            export GOOGLE_ADSENSE_PUBLISHER_ID='${{ secrets.GOOGLE_ADSENSE_PUBLISHER_ID }}'
             export HOST_BIND_IP='${{ env.HOST_BIND_IP }}'
             export HOST_PORT='${{ needs.build.outputs.host_port }}'
 

@@ -175,6 +175,7 @@ export default async function DataSourcesPage() {
       "Data series and update-frequency notes for indicators on the risk dashboard.",
     dateModified: null,
     path: "/data-sources",
+    locale,
   });
 
   return (

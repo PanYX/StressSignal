@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import sitemap from "../../app/sitemap";
+import { GET as adsTxt } from "../../app/ads.txt/route";
 import manifest from "../../app/manifest";
 import robots from "../../app/robots";
 import { siteMeta } from "../../lib/market-risk-metadata";
@@ -123,6 +124,9 @@ describe("seo helpers", () => {
       "@type": "ImageObject",
       url: `${siteBase}/logo-mark.svg`,
     });
+    expect(organization.inLanguage).toBe("zh-CN");
+    expect(buildOrganizationSchema("en").inLanguage).toBe("en-US");
+    expect(buildWebsiteSchema("en").inLanguage).toBe("en-US");
     expect(article.publisher).toMatchObject({
       "@type": "Organization",
       logo: {
@@ -150,6 +154,13 @@ describe("seo helpers", () => {
     expect(urls).toContain(`${siteBase}/markets/india`);
     expect(urls).toContain(`${siteBase}/markets/japan`);
     expect(urls).toContain(`${siteBase}/markets/hong-kong`);
+
+    const articleUrl = urls.find((url) => url.endsWith("/articles/what-is-vix"));
+    const articleEntry = (await sitemap()).find((entry) => entry.url === articleUrl);
+    expect(articleEntry?.lastModified).toEqual(new Date("2026-01-02T00:00:00.000Z"));
+
+    const homeEntry = (await sitemap()).find((entry) => entry.url === siteBase);
+    expect(homeEntry?.lastModified).toEqual(new Date("2026-06-05T00:00:00.000Z"));
   });
 
   it("robots allows render assets while blocking internal API routes", () => {
@@ -172,6 +183,18 @@ describe("seo helpers", () => {
     expect(appManifest.short_name).toBe("StressSignal");
     expect(iconSources).toEqual(
       expect.arrayContaining(["/icon", "/apple-icon", "/logo-mark.svg"]),
+    );
+  });
+
+  it("ads.txt is configurable without hard-coding a publisher id", async () => {
+    vi.stubEnv("GOOGLE_ADSENSE_PUBLISHER_ID", "");
+    let response = adsTxt();
+    await expect(response.text()).resolves.toContain("Configure GOOGLE_ADSENSE_PUBLISHER_ID");
+
+    vi.stubEnv("GOOGLE_ADSENSE_PUBLISHER_ID", "pub-1234567890123456");
+    response = adsTxt();
+    await expect(response.text()).resolves.toBe(
+      "google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0\n",
     );
   });
 });

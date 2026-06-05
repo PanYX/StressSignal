@@ -61,6 +61,7 @@ Required repository secrets:
 | `DATABASE_URL` | PostgreSQL DSN used by migrations and runtime |
 | `CRON_SECRET` | Shared secret for internal sync/recompute/revalidate routes |
 | `FRED_API_KEY` | FRED API key, if live sync is enabled |
+| `GOOGLE_ADSENSE_PUBLISHER_ID` | Optional AdSense publisher ID for `/ads.txt` |
 
 Deployment constants are defined in `.github/workflows/ci-cd.yml`, matching
 the `privconvert` style: server host, SSH user, SSH port, deploy paths, public
@@ -86,6 +87,7 @@ NEXT_PUBLIC_SITE_URL=https://stresssignal.app \
 DATABASE_URL='<postgres-dsn>' \
 FRED_API_KEY='<fred-key>' \
 CRON_SECRET='<cron-secret>' \
+GOOGLE_ADSENSE_PUBLISHER_ID='<pub-id>' \
 HOST_BIND_IP=127.0.0.1 \
 HOST_PORT=3014 \
 ./run_deployment.sh

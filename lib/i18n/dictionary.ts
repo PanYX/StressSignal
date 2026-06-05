@@ -727,6 +727,7 @@ const zh = {
     sections: [
       { title: "数据处理范围", body: ["本站面向公开市场风险观察，不收集个人身份信息用于交易决策。服务器会保存必要日志用于错误排查和页面稳定性观察。"] },
       { title: "第三方数据页面", body: ["页面中展示的风险指标来自可核对的数据序列。你可以在数据来源页查看序列名称、更新频率和最近更新时间。"] },
+      { title: "广告与第三方服务", body: ["未来如果启用 Google AdSense 或类似广告服务，第三方可能会使用 Cookie 或类似技术衡量广告效果、限制展示频率或投放相关广告。你可以通过浏览器设置或广告平台提供的控制项管理个性化广告。", "广告配置不会改变本站的核心原则：市场数据、解释内容与投资风险提示必须保持独立，不因广告展示而构成投资建议。"] },
       { title: "联系我们与更新", body: ["若你对隐私或数据口径有问题，请通过仓库议题或站内反馈渠道提交说明，我们会在后续发布周期内处理。"] },
     ],
   },
@@ -2267,6 +2268,7 @@ const enExtras: PartialDeep<Dictionary> = {
     sections: [
       { title: "What we process", body: ["The site is for public market observation. Server logs may keep basic request and error information so the site can stay reliable."] },
       { title: "Third-party data pages", body: ["Market indicators come from checkable data series. The data sources page lists the series name, update frequency, and latest refresh."] },
+      { title: "Ads and third-party services", body: ["If Google AdSense or similar ad services are enabled later, third parties may use cookies or similar technologies to measure ad performance, limit ad frequency, or serve relevant ads. You can manage personalized advertising through browser settings or controls provided by the ad platform.", "Advertising does not change the site’s core boundary: market data, interpretation, and risk notes remain independent and do not become investment advice."] },
       { title: "Questions", body: ["If you have questions about privacy or data definitions, raise an issue through the project channel."] },
     ],
   },

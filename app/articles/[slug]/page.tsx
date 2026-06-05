@@ -89,6 +89,7 @@ export default async function ArticleDetailPage({
     path: canonicalPath,
     tags,
     canonicalUrl: canonical,
+    locale,
   });
   const breadcrumbStructuredData = buildBreadcrumbSchema([
     { name: "StressSignal", path: "/" },

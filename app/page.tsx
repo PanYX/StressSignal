@@ -204,6 +204,7 @@ export default async function HomePage() {
       "Market risk dashboard with volatility, stress indicators and deterministic composite scoring.",
     dateModified: null,
     path: "/",
+    locale,
   });
 
   return (

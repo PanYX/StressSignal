@@ -204,6 +204,7 @@ export default async function IndicatorsPage({
       "Current market-risk indicators with latest readings, percentiles, and update dates.",
     dateModified: null,
     path: "/indicators",
+    locale,
   });
 
   return (

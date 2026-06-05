@@ -210,6 +210,7 @@ export default async function IndicatorDetailPage({
     description: configuredData.description,
     dateModified: null,
     path: canonicalPath,
+    locale,
   });
   const breadcrumbStructuredData = buildBreadcrumbSchema([
     { name: dictionary.site.title, path: "/" },

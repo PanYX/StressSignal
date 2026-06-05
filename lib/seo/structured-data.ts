@@ -1,4 +1,9 @@
 import { siteMeta } from "../market-risk-metadata";
+import {
+  DEFAULT_LOCALE,
+  getLanguageOption,
+  type Locale,
+} from "../i18n/locales";
 
 const normalizePath = (path: string): string => {
   if (!path) {
@@ -21,7 +26,10 @@ type BreadcrumbInput = {
   path: string;
 };
 
-export function buildWebsiteSchema(): Schema {
+const schemaLanguage = (locale: Locale = DEFAULT_LOCALE) =>
+  getLanguageOption(locale).dateLocale;
+
+export function buildWebsiteSchema(locale: Locale = DEFAULT_LOCALE): Schema {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -29,11 +37,11 @@ export function buildWebsiteSchema(): Schema {
     name: siteMeta.title,
     description: siteMeta.description,
     url: siteMeta.siteUrl,
-    inLanguage: "en-US",
+    inLanguage: schemaLanguage(locale),
   };
 }
 
-export function buildOrganizationSchema(): Schema {
+export function buildOrganizationSchema(locale: Locale = DEFAULT_LOCALE): Schema {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -48,6 +56,7 @@ export function buildOrganizationSchema(): Schema {
     },
     description:
       "Market-risk observability project for explainable public risk dashboards.",
+    inLanguage: schemaLanguage(locale),
   };
 }
 
@@ -56,11 +65,13 @@ export function buildDatasetSchema({
   description,
   dateModified,
   path,
+  locale = DEFAULT_LOCALE,
 }: {
   name: string;
   description: string;
   dateModified: string | null;
   path: string;
+  locale?: Locale;
 }): Schema {
   const dataset: Schema = {
     "@context": "https://schema.org",
@@ -74,7 +85,7 @@ export function buildDatasetSchema({
       url: siteMeta.siteUrl,
     },
     isAccessibleForFree: true,
-    inLanguage: "en-US",
+    inLanguage: schemaLanguage(locale),
   };
 
   if (dateModified) {
@@ -93,6 +104,7 @@ export function buildArticleSchema({
   path,
   tags,
   canonicalUrl,
+  locale = DEFAULT_LOCALE,
 }: {
   title: string;
   description: string;
@@ -102,6 +114,7 @@ export function buildArticleSchema({
   path: string;
   tags: string[];
   canonicalUrl: string;
+  locale?: Locale;
 }): Schema {
   return {
     "@context": "https://schema.org",
@@ -115,7 +128,7 @@ export function buildArticleSchema({
       name: author,
     },
     keywords: tags.join(", "),
-    inLanguage: "en-US",
+    inLanguage: schemaLanguage(locale),
     publisher: {
       "@type": "Organization",
       name: siteMeta.brand,
