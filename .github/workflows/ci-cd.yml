@@ -12,6 +12,10 @@ env:
   PROD_DEPLOY_PATH: "/opt/stresssignal/production"
   NEXT_PUBLIC_SITE_URL_STAGING: "https://staging.stresssignal.app"
   NEXT_PUBLIC_SITE_URL_PRODUCTION: "https://stresssignal.app"
+  ASSET_PREFIX_STAGING: "https://oss-dev.stresssignal.app/fe"
+  ASSET_PREFIX_PRODUCTION: "https://oss.stresssignal.app/fe"
+  R2_BUCKET_STAGING: "stresssignal-dev-assets"
+  R2_BUCKET_PRODUCTION: "stresssignal-assets"
   HOST_BIND_IP: "127.0.0.1"
   STAGING_HOST_PORT: "5014"
   PROD_HOST_PORT: "3014"
@@ -34,6 +38,10 @@ jobs:
       deploy_env: ${{ steps.deploy_vars.outputs.deploy_env }}
       next_public_site_url: ${{ steps.deploy_vars.outputs.next_public_site_url }}
       host_port: ${{ steps.deploy_vars.outputs.host_port }}
+      r2_enabled: ${{ steps.deploy_vars.outputs.r2_enabled }}
+      asset_prefix: ${{ steps.deploy_vars.outputs.asset_prefix }}
+      r2_bucket: ${{ steps.deploy_vars.outputs.r2_bucket }}
+      r2_endpoint_url: ${{ steps.deploy_vars.outputs.r2_endpoint_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,6 +51,13 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL_STAGING: ${{ env.NEXT_PUBLIC_SITE_URL_STAGING }}
           NEXT_PUBLIC_SITE_URL_PRODUCTION: ${{ env.NEXT_PUBLIC_SITE_URL_PRODUCTION }}
+          ASSET_PREFIX_STAGING: ${{ env.ASSET_PREFIX_STAGING }}
+          ASSET_PREFIX_PRODUCTION: ${{ env.ASSET_PREFIX_PRODUCTION }}
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_STAGING: ${{ env.R2_BUCKET_STAGING }}
+          R2_BUCKET_PRODUCTION: ${{ env.R2_BUCKET_PRODUCTION }}
           STAGING_HOST_PORT: ${{ env.STAGING_HOST_PORT }}
           PROD_HOST_PORT: ${{ env.PROD_HOST_PORT }}
         run: |
@@ -61,6 +76,64 @@ jobs:
           echo "deploy_env=${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
           echo "next_public_site_url=${NEXT_PUBLIC_SITE_URL}" >> "$GITHUB_OUTPUT"
           echo "host_port=${HOST_PORT}" >> "$GITHUB_OUTPUT"
+
+          R2_BUCKET="${R2_BUCKET_PRODUCTION:-stresssignal-assets}"
+          if [[ "${DEPLOY_ENV}" == "staging" ]]; then
+            R2_BUCKET="${R2_BUCKET_STAGING:-stresssignal-dev-assets}"
+          fi
+          echo "r2_bucket=${R2_BUCKET}" >> "$GITHUB_OUTPUT"
+
+          R2_VALUE_COUNT=0
+          for value in "${R2_ENDPOINT_URL:-}" "${R2_ACCESS_KEY_ID:-}" "${R2_SECRET_ACCESS_KEY:-}"; do
+            if [[ -n "$value" ]]; then
+              R2_VALUE_COUNT=$((R2_VALUE_COUNT + 1))
+            fi
+          done
+
+          if [[ "$R2_VALUE_COUNT" -eq 0 ]]; then
+            echo "r2_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "asset_prefix=" >> "$GITHUB_OUTPUT"
+            echo "r2_endpoint_url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -z "${R2_ENDPOINT_URL:-}" || -z "${R2_ACCESS_KEY_ID:-}" || -z "${R2_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "::error::R2 is partially configured. Set R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY."
+            exit 1
+          fi
+
+          R2_ENDPOINT_URL="${R2_ENDPOINT_URL#\"}"
+          R2_ENDPOINT_URL="${R2_ENDPOINT_URL%\"}"
+          R2_ENDPOINT_URL="${R2_ENDPOINT_URL#\'}"
+          R2_ENDPOINT_URL="${R2_ENDPOINT_URL%\'}"
+          R2_ENDPOINT_URL="${R2_ENDPOINT_URL%/}"
+
+          case "$R2_ENDPOINT_URL" in
+            https://*.r2.cloudflarestorage.com)
+              ;;
+            *)
+              echo "::error::R2_ENDPOINT_URL must be the account-level Cloudflare R2 S3 API endpoint, for example https://<account-id>.r2.cloudflarestorage.com. Do not include a bucket name, /fe path, custom domain, quotes, or comma-separated URLs."
+              exit 1
+              ;;
+          esac
+
+          if [[ "${DEPLOY_ENV}" == "staging" ]]; then
+            ASSET_PREFIX="${ASSET_PREFIX_STAGING:-}"
+          else
+            ASSET_PREFIX="${ASSET_PREFIX_PRODUCTION:-}"
+          fi
+          ASSET_PREFIX="${ASSET_PREFIX%/}"
+
+          if [[ -z "${ASSET_PREFIX}" ]]; then
+            echo "::error::R2 is enabled but ASSET_PREFIX_${DEPLOY_ENV^^} is missing."
+            exit 1
+          fi
+
+          ASSET_PREFIX="$ASSET_PREFIX" node -e "new URL(process.env.ASSET_PREFIX)" >/dev/null
+
+          echo "r2_enabled=true" >> "$GITHUB_OUTPUT"
+          echo "asset_prefix=${ASSET_PREFIX}" >> "$GITHUB_OUTPUT"
+          echo "r2_endpoint_url=${R2_ENDPOINT_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -118,11 +191,35 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_SITE_URL=${{ steps.deploy_vars.outputs.next_public_site_url }}
+            NEXT_PUBLIC_ASSET_PREFIX=${{ steps.deploy_vars.outputs.asset_prefix }}
             NEXT_BUILD_ID=${{ steps.meta.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Upload Next static assets to Cloudflare R2
+        if: steps.deploy_vars.outputs.r2_enabled == 'true'
+        env:
+          IMAGE: ${{ steps.set_lc_name.outputs.image_name }}:${{ steps.meta.outputs.version }}
+          R2_ENDPOINT_URL: ${{ steps.deploy_vars.outputs.r2_endpoint_url }}
+          R2_BUCKET: ${{ steps.deploy_vars.outputs.r2_bucket }}
+          NEXT_PUBLIC_ASSET_PREFIX: ${{ steps.deploy_vars.outputs.asset_prefix }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+
+          docker pull "$IMAGE"
+
+          cid="$(docker create "$IMAGE")"
+          rm -rf .r2-next-static
+          docker cp "$cid:/app/.next/static" .r2-next-static
+          docker rm "$cid"
+
+          find .r2-next-static -type f -name '*.map' -delete
+
+          bash scripts/upload_r2_next_static.sh
 
   package-artifacts:
     name: Package deployment artifacts

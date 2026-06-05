@@ -5,9 +5,11 @@ operating pattern as `privconvert`:
 
 1. GitHub Actions verifies the app.
 2. GitHub Actions builds and publishes a Docker image to GHCR.
-3. GitHub Actions packages the compose, deployment script, and nginx config.
-4. The target server pulls the image and runs it with Docker Compose.
-5. The deploy script checks container startup before pruning old images.
+3. If R2 is configured, GitHub Actions uploads `/_next/static` assets to
+   Cloudflare R2 and builds the app with an asset prefix.
+4. GitHub Actions packages the compose, deployment script, and nginx config.
+5. The target server pulls the image and runs it with Docker Compose.
+6. The deploy script checks container startup before pruning old images.
 
 Do not commit `.env.local`, production database URLs, API keys, or cron secrets.
 
@@ -23,6 +25,14 @@ Branch mapping follows `privconvert`:
 | --- | --- | --- | --- |
 | `test` | `staging` | `/opt/stresssignal/staging` | `5014` |
 | `main` | `production` | `/opt/stresssignal/production` | `3014` |
+
+Static Next.js chunks use the same R2 pattern as `privconvert` when the R2
+secrets are present:
+
+| Branch | Asset prefix | R2 bucket |
+| --- | --- | --- |
+| `test` | `https://oss-dev.stresssignal.app/fe` | `stresssignal-dev-assets` |
+| `main` | `https://oss.stresssignal.app/fe` | `stresssignal-assets` |
 
 The build job runs:
 
@@ -62,10 +72,16 @@ Required repository secrets:
 | `CRON_SECRET` | Shared secret for internal sync/recompute/revalidate routes |
 | `FRED_API_KEY` | FRED API key, if live sync is enabled |
 | `GOOGLE_ADSENSE_PUBLISHER_ID` | Optional AdSense publisher ID for `/ads.txt` |
+| `R2_ENDPOINT_URL` | Cloudflare R2 account-level S3 endpoint, for example `https://<account-id>.r2.cloudflarestorage.com` |
+| `R2_ACCESS_KEY_ID` | R2 S3 access key used to upload Next static assets |
+| `R2_SECRET_ACCESS_KEY` | R2 S3 secret key used to upload Next static assets |
 
 Deployment constants are defined in `.github/workflows/ci-cd.yml`, matching
 the `privconvert` style: server host, SSH user, SSH port, deploy paths, public
-site URLs, and host ports.
+site URLs, asset prefixes, R2 buckets, and host ports. If all three R2 secrets
+are absent, the workflow disables R2 and serves static chunks from the app. If
+only some R2 secrets are present, the workflow fails instead of deploying a
+partially configured build.
 
 ## Server Runtime
 
@@ -95,6 +111,32 @@ HOST_PORT=3014 \
 
 The script pulls the image before stopping the existing container, then runs a
 local container health check against `http://localhost:3000`.
+
+## R2 Static Assets
+
+The Docker build receives `NEXT_PUBLIC_ASSET_PREFIX`, so rendered pages reference
+Next static chunks under:
+
+```text
+https://oss.stresssignal.app/fe/_next/static/...
+```
+
+After building and pushing the image, GitHub Actions creates a temporary
+container, copies `/app/.next/static` into `.r2-next-static`, deletes source-map
+files, and runs:
+
+```bash
+bash scripts/upload_r2_next_static.sh
+```
+
+The upload script derives the R2 object prefix from the asset prefix and syncs
+files to:
+
+```text
+s3://stresssignal-assets/fe/_next/static
+```
+
+with immutable cache headers.
 
 ## Nginx
 
@@ -136,6 +178,7 @@ curl -I https://stresssignal.app
 curl -sS https://stresssignal.app/robots.txt
 curl -sS https://stresssignal.app/sitemap.xml
 curl -sS https://stresssignal.app/api/v1/summary
+curl -sS https://stresssignal.app | grep 'oss.stresssignal.app/fe/_next/static'
 ```
 
 Run live data sync separately or through your scheduler:
