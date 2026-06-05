@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
@@ -12,6 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { TrackedExternalLink } from "../components/analytics/tracked-external-link";
+import { TrackedLink } from "../components/analytics/tracked-link";
 import { TimeSeriesChart } from "../components/charts/time-series-chart";
 import {
   formatDateLabel,
@@ -87,7 +88,7 @@ export function RiskLayerNav({
           const active = activeHref === route.href;
 
           return (
-            <Link
+            <TrackedLink
               key={route.href}
               href={hrefWithLocale(route.href, locale)}
               className={cn(
@@ -95,10 +96,17 @@ export function RiskLayerNav({
                 active && "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
               )}
               aria-current={active ? "page" : undefined}
+              eventName="navigate_risk_layer"
+              eventProps={{
+                target: route.key,
+                href: route.href,
+                active,
+                locale,
+              }}
             >
               <Icon aria-hidden className="h-4 w-4" />
               {dictionary.site.nav[route.key]}
-            </Link>
+            </TrackedLink>
           );
         })}
       </div>
@@ -241,13 +249,19 @@ export function LayerMetricGrid({
             </div>
 
             <div className="mt-3 flex justify-end">
-              <Link
+              <TrackedLink
                 href={hrefWithLocale(`/indicators/${row.slug}`, locale)}
                 className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                eventName="select_indicator"
+                eventProps={{
+                  slug: row.slug,
+                  source: "risk_layer_metric",
+                  locale,
+                }}
               >
                 {dictionary.riskLayers.common.openDetail}
                 <ArrowRight aria-hidden className="h-3.5 w-3.5" />
-              </Link>
+              </TrackedLink>
             </div>
           </article>
         );
@@ -286,14 +300,21 @@ export function LayerGuide({
       {links?.length ? (
         <div className="mt-5 flex flex-wrap gap-2">
           {links.map((link) => (
-            <Link
+            <TrackedLink
               key={link.href}
               href={locale ? hrefWithLocale(link.href, locale) : link.href}
               className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+              eventName="click_cta"
+              eventProps={{
+                href: link.href,
+                label: link.label,
+                source: "risk_layer_guide",
+                locale: locale ?? "unknown",
+              }}
             >
               {link.label}
               <ArrowRight aria-hidden className="h-4 w-4" />
-            </Link>
+            </TrackedLink>
           ))}
         </div>
       ) : null}
@@ -386,18 +407,25 @@ export function SourceList({
   return (
     <div className="grid gap-2">
       {sources.slice(0, 8).map((source) => (
-        <a
+        <TrackedExternalLink
           key={`${source.slug}-${source.provider}-${source.externalId}`}
           href={source.sourceUrl}
           target="_blank"
           rel="noreferrer"
           className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50/60"
+          eventName="open_data_source"
+          eventProps={{
+            provider: source.provider,
+            external_id: source.externalId,
+            indicator_slug: source.slug,
+            source_context: "risk_layer_source_list",
+          }}
         >
           <span className="truncate">
             {source.externalId}
           </span>
           <ExternalLink aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />
-        </a>
+        </TrackedExternalLink>
       ))}
     </div>
   );

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
@@ -18,6 +17,8 @@ import {
 } from "lucide-react";
 import { Suspense } from "react";
 
+import { TrackedForm } from "../../components/analytics/tracked-form";
+import { TrackedLink } from "../../components/analytics/tracked-link";
 import { TableSkeleton, MetadataSkeleton } from "../../components/shared/data-skeletons";
 import { DisclaimerText, MetricMetadata } from "../../components/shared/metric-metadata";
 import { PageShell } from "../../components/shared/page-shell";
@@ -360,7 +361,7 @@ async function IndicatorsDataContent({
                   const Icon = FILTER_ICONS[value];
 
                   return (
-                    <Link
+                    <TrackedLink
                       key={value}
                       href={buildIndicatorsHref(controls, locale, { category: value })}
                       aria-current={active ? "page" : undefined}
@@ -369,16 +370,34 @@ async function IndicatorsDataContent({
                           ? "bg-emerald-700 text-white shadow-sm"
                           : "bg-slate-50 text-slate-600 hover:bg-white hover:text-slate-950"
                       }`}
+                      eventName="filter_indicators"
+                      eventProps={{
+                        category: value,
+                        previous_category: controls.category,
+                        sort: controls.sort,
+                        has_query: controls.query.length > 0,
+                        locale,
+                      }}
                     >
                       <Icon aria-hidden className="h-4 w-4" />
                       {label}
-                    </Link>
+                    </TrackedLink>
                   );
                 })}
               </nav>
 
               <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-                <form action="/indicators" className="flex min-w-0 rounded-md border border-slate-200 bg-white shadow-sm sm:min-w-[320px]">
+                <TrackedForm
+                  action="/indicators"
+                  className="flex min-w-0 rounded-md border border-slate-200 bg-white shadow-sm sm:min-w-[320px]"
+                  eventName="search_indicators"
+                  eventProps={{
+                    category: controls.category,
+                    sort: controls.sort,
+                    locale,
+                  }}
+                  trackedFields={["category", "sort"]}
+                >
                   <input type="hidden" name="lang" value={locale} />
                   {controls.category !== "all" ? <input type="hidden" name="category" value={controls.category} /> : null}
                   {controls.sort !== "percentileDesc" ? <input type="hidden" name="sort" value={controls.sort} /> : null}
@@ -403,9 +422,19 @@ async function IndicatorsDataContent({
                   >
                     <Search aria-hidden className="h-4 w-4" />
                   </button>
-                </form>
+                </TrackedForm>
 
-                <form action="/indicators" className="flex shrink-0 rounded-md border border-slate-200 bg-white shadow-sm">
+                <TrackedForm
+                  action="/indicators"
+                  className="flex shrink-0 rounded-md border border-slate-200 bg-white shadow-sm"
+                  eventName="sort_indicators"
+                  eventProps={{
+                    category: controls.category,
+                    previous_sort: controls.sort,
+                    locale,
+                  }}
+                  trackedFields={["category", "sort"]}
+                >
                   <input type="hidden" name="lang" value={locale} />
                   {controls.category !== "all" ? <input type="hidden" name="category" value={controls.category} /> : null}
                   {controls.query ? <input type="hidden" name="q" value={controls.query} /> : null}
@@ -433,16 +462,23 @@ async function IndicatorsDataContent({
                   >
                     {dictionary.indicatorsPage.sortApply}
                   </button>
-                </form>
+                </TrackedForm>
 
                 {hasActiveControls ? (
-                  <Link
+                  <TrackedLink
                     href={hrefWithLocale("/indicators", locale)}
                     className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold whitespace-nowrap text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950"
+                    eventName="clear_indicator_filters"
+                    eventProps={{
+                      category: controls.category,
+                      sort: controls.sort,
+                      has_query: controls.query.length > 0,
+                      locale,
+                    }}
                   >
                     <X aria-hidden className="h-4 w-4" />
                     {dictionary.indicatorsPage.clearFilters}
-                  </Link>
+                  </TrackedLink>
                 ) : null}
               </div>
             </div>
@@ -452,12 +488,20 @@ async function IndicatorsDataContent({
             <Card className="p-5">
               <h2 className="text-base font-semibold text-slate-950">{dictionary.indicatorsPage.noMatchesTitle}</h2>
               <p className="mt-1 text-sm text-slate-600">{dictionary.indicatorsPage.noMatchesBody}</p>
-              <Link
+              <TrackedLink
                 href={hrefWithLocale("/indicators", locale)}
                 className="mt-4 inline-flex rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+                eventName="clear_indicator_filters"
+                eventProps={{
+                  category: controls.category,
+                  sort: controls.sort,
+                  has_query: controls.query.length > 0,
+                  source: "no_matches",
+                  locale,
+                }}
               >
                 {dictionary.indicatorsPage.clearFilters}
-              </Link>
+              </TrackedLink>
             </Card>
           ) : (
             <>
@@ -466,12 +510,20 @@ async function IndicatorsDataContent({
                   <article key={item.slug} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <Link
+                        <TrackedLink
                           href={hrefWithLocale(`/indicators/${item.slug}`, locale)}
                           className="font-semibold text-slate-950 underline-offset-3 hover:text-emerald-800 hover:underline"
+                          eventName="select_indicator"
+                          eventProps={{
+                            slug: item.slug,
+                            source: "indicators_mobile",
+                            category: controls.category,
+                            sort: controls.sort,
+                            locale,
+                          }}
                         >
                           {toDisplayName(item)}
-                        </Link>
+                        </TrackedLink>
                         <p className="text-xs uppercase text-slate-500">{item.slug}</p>
                       </div>
                       <StatusPill
@@ -529,12 +581,20 @@ async function IndicatorsDataContent({
                                 }`}
                               />
                               <div>
-                                <Link
+                                <TrackedLink
                                   href={hrefWithLocale(`/indicators/${item.slug}`, locale)}
                                   className="font-semibold text-slate-900 underline-offset-3 hover:text-emerald-800 hover:underline"
+                                  eventName="select_indicator"
+                                  eventProps={{
+                                    slug: item.slug,
+                                    source: "indicators_table",
+                                    category: controls.category,
+                                    sort: controls.sort,
+                                    locale,
+                                  }}
                                 >
                                   {toDisplayName(item)}
-                                </Link>
+                                </TrackedLink>
                                 <p className="text-xs uppercase text-slate-500">{item.slug}</p>
                               </div>
                             </div>
@@ -610,13 +670,19 @@ async function IndicatorsDataContent({
               );
             })}
           </div>
-          <Link
+          <TrackedLink
             href={hrefWithLocale("/how-to-read", locale)}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+            eventName="click_cta"
+            eventProps={{
+              href: "/how-to-read",
+              source: "indicators_help",
+              locale,
+            }}
           >
             {dictionary.indicatorsPage.helpCta}
             <ArrowRight aria-hidden className="h-4 w-4" />
-          </Link>
+          </TrackedLink>
         </Card>
       </section>
 

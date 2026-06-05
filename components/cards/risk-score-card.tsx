@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
 import { cn } from "@/lib/utils";
@@ -95,7 +94,7 @@ export function RiskScoreCard({
           {topDrivers.length === 0 ? <li className="text-slate-500">{dictionary.riskCard.noDrivers}</li> : null}
           {topDrivers.map((driver, index) => (
             <li key={driver.slug}>
-              <Link
+              <TrackedLink
                 href={hrefWithLocale(`/indicators/${driver.slug}`, locale)}
                 className={cn(
                   "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-medium transition hover:-translate-y-0.5",
@@ -105,10 +104,17 @@ export function RiskScoreCard({
                       ? "border-amber-200 bg-amber-50 text-amber-800"
                       : "border-emerald-200 bg-emerald-50 text-emerald-800",
                 )}
+                eventName="select_indicator"
+                eventProps={{
+                  slug: driver.slug,
+                  rank: index + 1,
+                  source: "risk_score_top_driver",
+                  locale,
+                }}
               >
                 <span className="numeric rounded bg-white/80 px-1.5 text-xs">{index + 1}</span>
                 {driver.label}
-              </Link>
+              </TrackedLink>
             </li>
           ))}
         </ul>

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { trackPlausibleEvent } from "@/lib/analytics";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
 import { siteMeta } from "@/lib/market-risk-metadata";
@@ -50,6 +51,19 @@ export function SiteHeader({
   const isActive = (href: string) => isRouteActive(pathname, href);
   const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
   const closeMenuTimer = useRef<number | null>(null);
+  const trackHeaderNavigation = (
+    target: string,
+    href: string,
+    navKind: "brand" | "primary" | "group" | "dropdown",
+  ) => {
+    trackPlausibleEvent("navigate_header", {
+      target,
+      href,
+      nav_kind: navKind,
+      locale,
+      current_path: pathname,
+    });
+  };
 
   const clearCloseMenuTimer = () => {
     if (closeMenuTimer.current !== null) {
@@ -85,6 +99,7 @@ export function SiteHeader({
         <Link
           href={hrefWithLocale("/", locale)}
           className="flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-950 hover:text-slate-700"
+          onClick={() => trackHeaderNavigation("brand", "/", "brand")}
         >
           <Image
             src="/logo-mark.svg"
@@ -122,6 +137,7 @@ export function SiteHeader({
                       )}
                       aria-haspopup="menu"
                       aria-expanded={menuOpen}
+                      onClick={() => trackHeaderNavigation(route.key, route.href, "group")}
                     >
                       <Icon aria-hidden className="h-4 w-4" />
                       {dictionary.site.nav[route.key]}
@@ -160,6 +176,7 @@ export function SiteHeader({
                                 "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500",
                                 itemActive && "bg-emerald-50 text-emerald-800",
                               )}
+                              onClick={() => trackHeaderNavigation(item.key, item.href, "dropdown")}
                             >
                               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-slate-200 bg-slate-50 text-slate-500">
                                 <ItemIcon aria-hidden className="h-4 w-4" />
@@ -185,6 +202,7 @@ export function SiteHeader({
                     "relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500",
                     active && "bg-emerald-50 text-emerald-800",
                   )}
+                  onClick={() => trackHeaderNavigation(route.key, route.href, "primary")}
                 >
                   <Icon aria-hidden className="h-4 w-4" />
                   {dictionary.site.nav[route.key]}

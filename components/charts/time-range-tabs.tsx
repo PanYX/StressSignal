@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { trackPlausibleEvent } from "@/lib/analytics";
 import type { Locale } from "@/lib/i18n/locales";
 
 type TimeRange = "3M" | "1Y" | "5Y" | "MAX";
@@ -48,6 +49,16 @@ export function TimeRangeTabs({
                 ? "bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200"
                 : "text-slate-600 hover:bg-slate-100"
             }`}
+            onClick={() => {
+              if (!isActive) {
+                trackPlausibleEvent("select_time_range", {
+                  range,
+                  previous_range: currentRange,
+                  page_path: activeBase,
+                  locale,
+                });
+              }
+            }}
           >
             {LABELS[range]}
           </Link>

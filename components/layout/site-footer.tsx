@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { Locale } from "@/lib/i18n/locales";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
@@ -28,13 +27,19 @@ export function SiteFooter({
         </div>
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {footerLinks.map((link) => (
-            <Link
+            <TrackedLink
               key={link.href}
               href={hrefWithLocale(link.href, locale)}
               className="text-slate-500 hover:text-emerald-800 hover:underline"
+              eventName="navigate_footer"
+              eventProps={{
+                target: link.key,
+                href: link.href,
+                locale,
+              }}
             >
               {dictionary.site.nav[link.key]}
-            </Link>
+            </TrackedLink>
           ))}
         </nav>
       </div>

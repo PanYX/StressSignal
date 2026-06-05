@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { TrackedLink } from "../../components/analytics/tracked-link";
 import { PageShell } from "../../components/shared/page-shell";
 import { Badge, Card, SectionHeading } from "../../components/shared/ui-kit";
 import { getAllArticlesMeta } from "../../lib/content/articles";
@@ -53,13 +53,20 @@ export default async function ArticlesPage() {
           <SectionHeading title={dictionary.articlesPage.readingPathTitle} />
           <div className="mt-4 space-y-3">
             {dictionary.articlesPage.readingPath.map((item, index) => (
-              <Link
+              <TrackedLink
                 key={item.title}
                 href={hrefWithLocale(readingPathLinks[index] ?? "/articles", locale)}
                 aria-label={dictionary.articlesPage.readingPathAria
                   .replace("{index}", String(index + 1))
                   .replace("{title}", item.title)}
                 className="block rounded-lg border border-slate-200 bg-white p-4 transition hover:border-emerald-200 hover:bg-emerald-50/40"
+                eventName="select_article"
+                eventProps={{
+                  slug: readingPathLinks[index]?.replace("/articles/", "") ?? "articles",
+                  source: "reading_path",
+                  rank: index + 1,
+                  locale,
+                }}
               >
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-700 text-sm font-semibold text-white">
                   {index + 1}
@@ -69,7 +76,7 @@ export default async function ArticlesPage() {
                 <p className="mt-3 text-xs text-emerald-700">
                   {dictionary.articlesPage.relatedIndicatorPrefix}{relatedIndicators[index]}
                 </p>
-              </Link>
+              </TrackedLink>
             ))}
           </div>
         </Card>
@@ -80,10 +87,17 @@ export default async function ArticlesPage() {
             const copy = dictionary.articleCopy[slug as keyof typeof dictionary.articleCopy];
             const tags = getLocalizedArticleTags(locale, frontmatter.tags).slice(0, 2);
             return (
-              <Link
+              <TrackedLink
                 key={slug}
                 href={hrefWithLocale(`/articles/${slug}`, locale)}
                 className="group rounded-lg border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+                eventName="select_article"
+                eventProps={{
+                  slug,
+                  source: "article_grid",
+                  rank: index + 1,
+                  locale,
+                }}
               >
                 <span className="grid h-6 w-6 place-items-center rounded-md bg-emerald-700 text-xs font-semibold text-white">
                   {index + 1}
@@ -105,7 +119,7 @@ export default async function ArticlesPage() {
                   <span>{formatDateLabel(frontmatter.publishedAt, locale, dictionary)}</span>
                   <span>{dictionary.common.read}</span>
                 </div>
-              </Link>
+              </TrackedLink>
             );
           })}
         </div>
@@ -134,16 +148,22 @@ export default async function ArticlesPage() {
               {articles.slice(0, 5).map((article) => {
                 const copy = dictionary.articleCopy[article.slug as keyof typeof dictionary.articleCopy];
                 return (
-                  <Link
+                  <TrackedLink
                     key={article.slug}
                     href={hrefWithLocale(`/articles/${article.slug}`, locale)}
                     className="flex items-center justify-between gap-3 text-slate-600 hover:text-emerald-800"
+                    eventName="select_article"
+                    eventProps={{
+                      slug: article.slug,
+                      source: "latest_articles",
+                      locale,
+                    }}
                   >
                     <span className="truncate">{copy?.title ?? article.frontmatter.title}</span>
                     <span className="numeric shrink-0 text-xs text-slate-400">
                       {formatDateLabel(article.frontmatter.updatedAt ?? article.frontmatter.publishedAt, locale, dictionary)}
                     </span>
-                  </Link>
+                  </TrackedLink>
                 );
               })}
             </div>
@@ -157,9 +177,18 @@ export default async function ArticlesPage() {
             <h2 className="text-lg font-semibold text-slate-950">{dictionary.articlesPage.homeCtaTitle}</h2>
             <p className="mt-1 text-sm text-slate-600">{dictionary.articlesPage.homeCtaBody}</p>
           </div>
-          <Link href={hrefWithLocale("/", locale)} className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+          <TrackedLink
+            href={hrefWithLocale("/", locale)}
+            className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+            eventName="click_cta"
+            eventProps={{
+              href: "/",
+              source: "articles_home_cta",
+              locale,
+            }}
+          >
             {dictionary.articlesPage.homeCtaButton}
-          </Link>
+          </TrackedLink>
         </div>
       </Card>
     </PageShell>

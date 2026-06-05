@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { PageShell } from "@/components/shared/page-shell";
 import { Badge, Card, MetricTile, SectionHeading, StatusPill } from "@/components/shared/ui-kit";
@@ -271,19 +272,34 @@ export default async function FinancialConditionsIndexPage() {
             <SectionHeading title="Source trail" />
             <ul className="mt-3 space-y-2 text-sm leading-6">
               <li>
-                <a className="font-semibold text-emerald-800 underline" href="https://www.chicagofed.org/research/data/nfci/about?trigger=true">
+                <TrackedExternalLink
+                  className="font-semibold text-emerald-800 underline"
+                  href="https://www.chicagofed.org/research/data/nfci/about?trigger=true"
+                  eventName="open_reference_link"
+                  eventProps={{ source: "financial_conditions_source_trail", target: "chicago_fed_nfci_methodology", locale }}
+                >
                   Chicago Fed NFCI methodology
-                </a>
+                </TrackedExternalLink>
               </li>
               <li>
-                <a className="font-semibold text-emerald-800 underline" href="https://www.chicagofed.org/research/data/nfci/current-data?trigger=true">
+                <TrackedExternalLink
+                  className="font-semibold text-emerald-800 underline"
+                  href="https://www.chicagofed.org/research/data/nfci/current-data?trigger=true"
+                  eventName="open_reference_link"
+                  eventProps={{ source: "financial_conditions_source_trail", target: "chicago_fed_current_nfci_data", locale }}
+                >
                   Chicago Fed current NFCI data
-                </a>
+                </TrackedExternalLink>
               </li>
               <li>
-                <a className="font-semibold text-emerald-800 underline" href="https://www.stlouisfed.org/publications/regional-economist/2023/mar/what-do-financial-conditions-indexes-tell-us">
+                <TrackedExternalLink
+                  className="font-semibold text-emerald-800 underline"
+                  href="https://www.stlouisfed.org/publications/regional-economist/2023/mar/what-do-financial-conditions-indexes-tell-us"
+                  eventName="open_reference_link"
+                  eventProps={{ source: "financial_conditions_source_trail", target: "stlouis_fed_conditions_explainer", locale }}
+                >
                   St. Louis Fed on financial conditions indexes
-                </a>
+                </TrackedExternalLink>
               </li>
             </ul>
           </Card>
@@ -297,13 +313,21 @@ export default async function FinancialConditionsIndexPage() {
                 { label: "STLFSI4 indicator", href: "/indicators/stlfsi4" },
                 { label: "VIX term structure", href: "/vix-term-structure" },
               ].map((item) => (
-                <Link
+                <TrackedLink
                   key={item.href}
                   href={hrefWithLocale(item.href, locale)}
                   className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                  eventName={item.href.startsWith("/indicators/") ? "select_indicator" : "click_cta"}
+                  eventProps={{
+                    href: item.href,
+                    label: item.label,
+                    slug: item.href.startsWith("/indicators/") ? item.href.replace("/indicators/", "") : null,
+                    source: "financial_conditions_next_checks",
+                    locale,
+                  }}
                 >
                   {item.label}
-                </Link>
+                </TrackedLink>
               ))}
             </div>
           </Card>

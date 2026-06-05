@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { TrackedLink } from "../../../components/analytics/tracked-link";
 import { DisclaimerText } from "../../../components/shared/metric-metadata";
 import { PageShell } from "../../../components/shared/page-shell";
 import { Card, MetricTile, SectionHeading } from "../../../components/shared/ui-kit";
@@ -103,13 +103,20 @@ export default async function MarketRegionPage({
     >
       <RiskLayerNav dictionary={dictionary} locale={locale} activeHref="/global-risk" />
 
-      <Link
+      <TrackedLink
         href={hrefWithLocale("/global-risk", locale)}
         className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+        eventName="click_cta"
+        eventProps={{
+          href: "/global-risk",
+          source: "market_region_back",
+          region,
+          locale,
+        }}
       >
         <ArrowLeft aria-hidden className="h-4 w-4" />
         {dictionary.riskLayers.market.back}
-      </Link>
+      </TrackedLink>
 
       <section className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <MetricTile

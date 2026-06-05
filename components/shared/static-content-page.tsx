@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary, ArticleSection, Locale } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
 
@@ -110,14 +109,52 @@ export function StaticContentPage({
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <span className="font-semibold text-slate-950">{dictionary.staticContent.relatedLinksTitle}</span>
-          <Link href={hrefWithLocale("/privacy", locale)} className="text-slate-600 hover:text-emerald-800">{dictionary.site.nav.privacy} →</Link>
-          <Link href={hrefWithLocale("/terms", locale)} className="text-slate-600 hover:text-emerald-800">{dictionary.site.nav.terms} →</Link>
-          <Link href={hrefWithLocale("/data-sources", locale)} className="text-slate-600 hover:text-emerald-800">{dictionary.site.nav.dataSources} →</Link>
-          <Link href={hrefWithLocale("/how-to-read", locale)} className="text-slate-600 hover:text-emerald-800">{dictionary.site.nav.howToRead} →</Link>
+          <TrackedLink
+            href={hrefWithLocale("/privacy", locale)}
+            className="text-slate-600 hover:text-emerald-800"
+            eventName="click_cta"
+            eventProps={{ href: "/privacy", source: "static_related_links", locale }}
+          >
+            {dictionary.site.nav.privacy} →
+          </TrackedLink>
+          <TrackedLink
+            href={hrefWithLocale("/terms", locale)}
+            className="text-slate-600 hover:text-emerald-800"
+            eventName="click_cta"
+            eventProps={{ href: "/terms", source: "static_related_links", locale }}
+          >
+            {dictionary.site.nav.terms} →
+          </TrackedLink>
+          <TrackedLink
+            href={hrefWithLocale("/data-sources", locale)}
+            className="text-slate-600 hover:text-emerald-800"
+            eventName="click_cta"
+            eventProps={{ href: "/data-sources", source: "static_related_links", locale }}
+          >
+            {dictionary.site.nav.dataSources} →
+          </TrackedLink>
+          <TrackedLink
+            href={hrefWithLocale("/how-to-read", locale)}
+            className="text-slate-600 hover:text-emerald-800"
+            eventName="click_cta"
+            eventProps={{ href: "/how-to-read", source: "static_related_links", locale }}
+          >
+            {dictionary.site.nav.howToRead} →
+          </TrackedLink>
           {ctaHref && ctaLabel ? (
-            <Link href={hrefWithLocale(ctaHref, locale)} className="ml-auto rounded-md bg-emerald-700 px-3 py-2 font-semibold text-white hover:bg-emerald-800">
+            <TrackedLink
+              href={hrefWithLocale(ctaHref, locale)}
+              className="ml-auto rounded-md bg-emerald-700 px-3 py-2 font-semibold text-white hover:bg-emerald-800"
+              eventName="click_cta"
+              eventProps={{
+                href: ctaHref,
+                label: ctaLabel,
+                source: "static_content_cta",
+                locale,
+              }}
+            >
               {ctaLabel}
-            </Link>
+            </TrackedLink>
           ) : null}
         </div>
       </Card>

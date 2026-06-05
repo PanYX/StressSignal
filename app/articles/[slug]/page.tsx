@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { TrackedLink } from "../../../components/analytics/tracked-link";
 import { PageShell } from "../../../components/shared/page-shell";
 import { DisclaimerText } from "../../../components/shared/metric-metadata";
 import { Badge, Card, SectionHeading } from "../../../components/shared/ui-kit";
@@ -233,10 +233,21 @@ export default async function ArticleDetailPage({
               <SectionHeading title={dictionary.articleDetail.relatedArticlesTitle} />
               <div className="mt-3 space-y-3">
                 {dictionary.articleDetail.relatedArticles.map((item) => (
-                  <Link key={item.href} href={hrefWithLocale(item.href, locale)} className="block border-b border-slate-100 pb-3 text-sm text-slate-700 last:border-0 last:pb-0 hover:text-emerald-800">
+                  <TrackedLink
+                    key={item.href}
+                    href={hrefWithLocale(item.href, locale)}
+                    className="block border-b border-slate-100 pb-3 text-sm text-slate-700 last:border-0 last:pb-0 hover:text-emerald-800"
+                    eventName="select_article"
+                    eventProps={{
+                      slug: item.href.replace("/articles/", ""),
+                      current_slug: article.slug,
+                      source: "article_detail_related",
+                      locale,
+                    }}
+                  >
                     <span className="font-semibold">{item.label}</span>
                     <span className="mt-1 block text-xs text-slate-500">{dictionary.articleDetail.relatedArticleCta}</span>
-                  </Link>
+                  </TrackedLink>
                 ))}
               </div>
             </Card>

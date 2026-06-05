@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
+import { TrackedExternalLink } from "../../components/analytics/tracked-external-link";
+import { TrackedLink } from "../../components/analytics/tracked-link";
 import { PageShell } from "../../components/shared/page-shell";
 import { DisclaimerText } from "../../components/shared/metric-metadata";
 import { MetadataSkeleton, TableSkeleton } from "../../components/shared/data-skeletons";
@@ -335,20 +336,36 @@ async function DataSourcesDynamicContent({
                 {tableRows.map((row) => (
                   <tr key={row.rowKey} className="border-t border-slate-100 hover:bg-slate-50/60">
                     <td className="px-3 py-3">
-                      <Link href={hrefWithLocale(`/indicators/${row.indicator}`, locale)} className="font-semibold text-slate-900 hover:text-emerald-800">
+                      <TrackedLink
+                        href={hrefWithLocale(`/indicators/${row.indicator}`, locale)}
+                        className="font-semibold text-slate-900 hover:text-emerald-800"
+                        eventName="select_indicator"
+                        eventProps={{
+                          slug: row.indicator,
+                          source: "data_sources_table",
+                          locale,
+                        }}
+                      >
                         {row.indicatorName}
-                      </Link>
+                      </TrackedLink>
                     </td>
                     <td className="px-3 py-3">
                       {row.sourceUrl ? (
-                        <a
+                        <TrackedExternalLink
                           href={row.sourceUrl}
                           className="font-medium text-emerald-700 underline-offset-2 hover:underline"
                           target="_blank"
                           rel="noreferrer"
+                          eventName="open_data_source"
+                          eventProps={{
+                            external_id: row.sourceName,
+                            indicator_slug: row.indicator,
+                            source_context: "data_sources_table",
+                            locale,
+                          }}
                         >
                           {row.sourceName}
-                        </a>
+                        </TrackedExternalLink>
                       ) : (
                         row.sourceName
                       )}

@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
 
@@ -37,9 +36,18 @@ export function PageShell({
                 return (
                   <li key={`${item.label}-${index}`} className="flex items-center gap-2">
                     {item.href && !isLast ? (
-                      <Link href={hrefWithLocale(item.href, locale)} className="text-slate-500 underline-offset-3 hover:text-emerald-800 hover:underline">
+                      <TrackedLink
+                        href={hrefWithLocale(item.href, locale)}
+                        className="text-slate-500 underline-offset-3 hover:text-emerald-800 hover:underline"
+                        eventName="navigate_breadcrumb"
+                        eventProps={{
+                          href: item.href,
+                          label: item.label,
+                          locale,
+                        }}
+                      >
                         {item.label}
-                      </Link>
+                      </TrackedLink>
                     ) : (
                       <span aria-current={isLast ? "page" : undefined} className={isLast ? "text-slate-700" : undefined}>
                         {item.label}

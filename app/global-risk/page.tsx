@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
 
+import { TrackedLink } from "../../components/analytics/tracked-link";
 import { ChartGridSkeleton } from "../../components/shared/data-skeletons";
 import { formatNumber, formatSignedNumber } from "../../components/shared/format";
 import { DisclaimerText } from "../../components/shared/metric-metadata";
@@ -149,10 +149,17 @@ async function GlobalRiskData({
               const tone = toneForPercentile(row?.pctRank1y);
 
               return (
-                <Link
+                <TrackedLink
                   key={region.slug}
                   href={hrefWithLocale(region.href, locale)}
                   className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 transition hover:border-emerald-200 hover:bg-emerald-50/70"
+                  eventName="select_market_region"
+                  eventProps={{
+                    region_slug: region.slug,
+                    href: region.href,
+                    source: "global_risk_region_card",
+                    locale,
+                  }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-semibold text-slate-950">{region.name}</p>
@@ -168,7 +175,7 @@ async function GlobalRiskData({
                       label={row?.pctRank1y === null || row?.pctRank1y === undefined ? "--" : `${Math.round(row.pctRank1y * 100)}%`}
                     />
                   </div>
-                </Link>
+                </TrackedLink>
               );
             })}
           </div>

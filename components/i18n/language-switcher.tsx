@@ -3,6 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { trackPlausibleEvent } from "@/lib/analytics";
 import { LANGUAGE_OPTIONS, type Locale } from "@/lib/i18n/locales";
 
 export function LanguageSwitcher({
@@ -28,6 +29,14 @@ export function LanguageSwitcher({
     setOpen(false);
   };
 
+  const trackLanguageMenu = (openNext: boolean) => {
+    trackPlausibleEvent("toggle_language_menu", {
+      open: openNext,
+      locale: currentLocale,
+      current_path: pathname,
+    });
+  };
+
   return (
     <div className="relative shrink-0">
       <button
@@ -35,7 +44,13 @@ export function LanguageSwitcher({
         aria-label={label}
         aria-expanded={open}
         className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setOpen((value) => {
+            const next = !value;
+            trackLanguageMenu(next);
+            return next;
+          });
+        }}
       >
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
         <span>{currentLabel}</span>
@@ -52,7 +67,14 @@ export function LanguageSwitcher({
                   : "text-slate-800"
               }`}
               hrefLang={option.htmlLang}
-              onClick={closeMenu}
+              onClick={() => {
+                trackPlausibleEvent("change_language", {
+                  from_locale: currentLocale,
+                  to_locale: option.code,
+                  current_path: pathname,
+                });
+                closeMenu();
+              }}
             >
               {option.label}
             </a>

@@ -1,5 +1,5 @@
-import Link from "next/link";
-
+import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
 
@@ -96,13 +96,20 @@ export function IndicatorDefinitionPanel({
           <h2 className="text-sm font-semibold text-slate-800">{dictionary.indicatorDefinition.related}</h2>
           <div className="flex flex-wrap gap-2">
             {(RelatedMap[slug] ?? []).map((relatedSlug) => (
-              <Link
+              <TrackedLink
                 key={relatedSlug}
                 href={hrefWithLocale(`/indicators/${relatedSlug}`, locale)}
                 className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                eventName="select_indicator"
+                eventProps={{
+                  slug: relatedSlug,
+                  current_slug: slug,
+                  source: "indicator_definition_related",
+                  locale,
+                }}
               >
                 {relatedSlug.toUpperCase()}
-              </Link>
+              </TrackedLink>
             ))}
           </div>
         </div>
@@ -111,13 +118,20 @@ export function IndicatorDefinitionPanel({
           <h2 className="text-sm font-semibold text-slate-800">{dictionary.indicatorDefinition.articles}</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {(ArticleMap[slug] ?? []).map((articleSlug) => (
-              <Link
+              <TrackedLink
                 key={articleSlug}
                 href={hrefWithLocale(`/articles/${articleSlug}`, locale)}
                 className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                eventName="select_article"
+                eventProps={{
+                  slug: articleSlug,
+                  source: "indicator_definition_article",
+                  indicator_slug: slug,
+                  locale,
+                }}
               >
                 {dictionary.articleLabels[articleSlug as keyof typeof dictionary.articleLabels] ?? articleSlug}
-              </Link>
+              </TrackedLink>
             ))}
           </div>
         </div>
@@ -132,14 +146,23 @@ export function IndicatorDefinitionPanel({
               className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600"
             >
               {source.sourceUrl ? (
-                <a
+                <TrackedExternalLink
                   href={source.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="font-medium text-emerald-700 underline-offset-2 hover:underline"
+                  eventName="open_data_source"
+                  eventProps={{
+                    provider: source.provider,
+                    external_id: source.externalId,
+                    indicator_slug: slug,
+                    is_primary: source.isPrimary,
+                    source_context: "indicator_definition",
+                    locale,
+                  }}
                 >
                   {source.externalId}
-                </a>
+                </TrackedExternalLink>
               ) : (
                 <span className="font-medium text-slate-700">{source.externalId}</span>
               )}

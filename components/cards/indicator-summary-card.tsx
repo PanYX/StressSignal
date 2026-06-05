@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionary";
 import { translateStateLabel } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
@@ -70,9 +69,23 @@ export function IndicatorSummaryCard({ row, dictionary, locale }: IndicatorSumma
     row.pctRank1y === null ? dictionary.indicatorCard.sampleShort : `${(row.pctRank1y * 100).toFixed(0)}%`;
 
   return (
-    <Link
+    <TrackedLink
       href={hrefWithLocale(`/indicators/${row.slug}`, locale)}
       className="group block rounded-lg border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+      eventName="select_indicator"
+      eventProps={{
+        slug: row.slug,
+        source: "indicator_summary_card",
+        locale,
+        percentile_bucket:
+          row.pctRank1y === null
+            ? "missing"
+            : row.pctRank1y >= 0.8
+              ? "elevated"
+              : row.pctRank1y >= 0.5
+                ? "watch"
+                : "calm",
+      }}
     >
       <header className="mb-3 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
@@ -129,6 +142,6 @@ export function IndicatorSummaryCard({ row, dictionary, locale }: IndicatorSumma
         <span>·</span>
         <span>{dictionary.indicatorCard.updated} {formatDateLabel(row.updatedAt ?? row.latestDate ?? null, locale, dictionary)}</span>
       </div>
-    </Link>
+    </TrackedLink>
   );
 }

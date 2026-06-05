@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
+import { TrackedLink } from "../components/analytics/tracked-link";
 import { IndicatorSummaryCard } from "../components/cards/indicator-summary-card";
 import { RiskScoreCard } from "../components/cards/risk-score-card";
 import { TimeSeriesChart } from "../components/charts/time-series-chart";
@@ -413,7 +413,7 @@ async function HomeRiskDrivers({
               .slice()
               .sort((left, right) => (right.pctRank1y ?? -1) - (left.pctRank1y ?? -1))
               .slice(0, 6)
-              .map((item) => (
+              .map((item, index) => (
                 <tr key={item.slug} className="border-t border-slate-100 hover:bg-slate-50/60">
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-3">
@@ -427,12 +427,19 @@ async function HomeRiskDrivers({
                         }`}
                       />
                       <div>
-                        <Link
+                        <TrackedLink
                           href={hrefWithLocale(`/indicators/${item.slug}`, locale)}
                           className="font-semibold text-slate-950 underline-offset-3 hover:text-emerald-800 hover:underline"
+                          eventName="select_indicator"
+                          eventProps={{
+                            slug: item.slug,
+                            source: "home_driver_table",
+                            rank: index + 1,
+                            locale,
+                          }}
                         >
                           {item.name}
-                        </Link>
+                        </TrackedLink>
                         <p className="text-xs uppercase text-slate-500">{item.slug}</p>
                       </div>
                     </div>

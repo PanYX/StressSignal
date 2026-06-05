@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import "./globals.css";
+import { PlausibleAnalytics } from "../components/analytics/plausible-analytics";
 import { SiteShell } from "../components/layout/site-shell";
 import { getCurrentLocale, getDictionary } from "../lib/i18n/dictionary";
 import { getLanguageOption } from "../lib/i18n/locales";
@@ -94,6 +95,7 @@ export default async function RootLayout({
   return (
     <html lang={language.htmlLang} suppressHydrationWarning>
       <body>
+        <PlausibleAnalytics />
         <SiteShell dictionary={dictionary} locale={locale}>
           {children}
         </SiteShell>

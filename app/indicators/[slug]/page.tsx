@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { TrackedLink } from "../../../components/analytics/tracked-link";
 import { TimeRangeTabs } from "../../../components/charts/time-range-tabs";
 import { TimeSeriesChart } from "../../../components/charts/time-series-chart";
 import { IndicatorDefinitionPanel } from "../../../components/indicators/indicator-definition";
@@ -443,13 +443,20 @@ async function IndicatorDynamicContent({
           <SectionHeading title={dictionary.indicatorDetail.relatedJump} />
           <div className="mt-3 flex flex-wrap gap-2">
             {relatedSlugs.map((relatedSlug) => (
-              <Link
+              <TrackedLink
                 key={relatedSlug}
                 href={hrefWithLocale(`/indicators/${relatedSlug}`, locale)}
                 className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                eventName="select_indicator"
+                eventProps={{
+                  slug: relatedSlug,
+                  current_slug: slug,
+                  source: "related_indicator",
+                  locale,
+                }}
               >
                 {relatedSlug.toUpperCase()}
-              </Link>
+              </TrackedLink>
             ))}
           </div>
         </Card>
@@ -471,17 +478,34 @@ async function IndicatorDynamicContent({
           </ol>
           <p className="mt-3 text-sm text-slate-600">
             {dictionary.indicatorDetail.methodEntry}
-            <Link href={hrefWithLocale("/how-to-read", locale)} className="font-semibold text-emerald-800 underline">
+            <TrackedLink
+              href={hrefWithLocale("/how-to-read", locale)}
+              className="font-semibold text-emerald-800 underline"
+              eventName="click_cta"
+              eventProps={{
+                href: "/how-to-read",
+                source: "indicator_method_link",
+                indicator_slug: slug,
+                locale,
+              }}
+            >
               {dictionary.indicatorDetail.methodLink}
-            </Link>
+            </TrackedLink>
             {sentenceEnd}
           </p>
-          <Link
+          <TrackedLink
             href={hrefWithLocale("/indicators", locale)}
             className="mt-3 inline-flex rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            eventName="click_cta"
+            eventProps={{
+              href: "/indicators",
+              source: "indicator_back_to_list",
+              indicator_slug: slug,
+              locale,
+            }}
           >
             {dictionary.indicatorDetail.backToIndicators}
-          </Link>
+          </TrackedLink>
         </Card>
       </aside>
     </section>

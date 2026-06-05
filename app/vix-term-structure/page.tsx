@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import { TimeSeriesChart } from "@/components/charts/time-series-chart";
 import { PageShell } from "@/components/shared/page-shell";
 import { Badge, Card, MetricTile, SectionHeading, StatusPill } from "@/components/shared/ui-kit";
@@ -265,19 +266,34 @@ export default async function VixTermStructurePage() {
             <SectionHeading title="Source trail" />
             <ul className="mt-3 space-y-2 text-sm leading-6">
               <li>
-                <a className="font-semibold text-emerald-800 underline" href="https://ww2.cboe.com/tradable_products/vix/term_structure/">
+                <TrackedExternalLink
+                  className="font-semibold text-emerald-800 underline"
+                  href="https://ww2.cboe.com/tradable_products/vix/term_structure/"
+                  eventName="open_reference_link"
+                  eventProps={{ source: "vix_term_structure_source_trail", target: "cboe_vix_term_structure", locale }}
+                >
                   Cboe VIX term structure
-                </a>
+                </TrackedExternalLink>
               </li>
               <li>
-                <a className="font-semibold text-emerald-800 underline" href="https://www.cboe.com/tradable-products/vix/">
+                <TrackedExternalLink
+                  className="font-semibold text-emerald-800 underline"
+                  href="https://www.cboe.com/tradable-products/vix/"
+                  eventName="open_reference_link"
+                  eventProps={{ source: "vix_term_structure_source_trail", target: "cboe_vix_overview", locale }}
+                >
                   Cboe VIX overview
-                </a>
+                </TrackedExternalLink>
               </li>
               <li>
-                <a className="font-semibold text-emerald-800 underline" href="https://fred.stlouisfed.org/series/VIXCLS">
+                <TrackedExternalLink
+                  className="font-semibold text-emerald-800 underline"
+                  href="https://fred.stlouisfed.org/series/VIXCLS"
+                  eventName="open_reference_link"
+                  eventProps={{ source: "vix_term_structure_source_trail", target: "fred_vixcls", locale }}
+                >
                   FRED VIXCLS
-                </a>
+                </TrackedExternalLink>
               </li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
@@ -294,14 +310,22 @@ export default async function VixTermStructurePage() {
                 { label: "Financial conditions", href: "/financial-conditions-index" },
                 { label: "How to read", href: "/how-to-read" },
               ].map((item) => (
-                <Link
+                <TrackedLink
                   key={item.href}
                   href={hrefWithLocale(item.href, locale)}
                   hrefLang={language.htmlLang}
                   className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                  eventName={item.href.startsWith("/indicators/") ? "select_indicator" : "click_cta"}
+                  eventProps={{
+                    href: item.href,
+                    label: item.label,
+                    slug: item.href.startsWith("/indicators/") ? item.href.replace("/indicators/", "") : null,
+                    source: "vix_term_structure_next_checks",
+                    locale,
+                  }}
                 >
                   {item.label}
-                </Link>
+                </TrackedLink>
               ))}
             </div>
           </Card>

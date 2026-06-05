@@ -1,6 +1,7 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { TrackedExternalLink } from "@/components/analytics/tracked-external-link";
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionary";
 import { hrefWithLocale } from "@/lib/i18n/locale-url";
 
@@ -43,14 +44,22 @@ export function MetricMetadata({
         key={`${source.provider}-${source.externalId}-${index}`}
         className="inline-flex items-center"
       >
-        <a
+        <TrackedExternalLink
           href={source.sourceUrl}
           target="_blank"
           rel="noreferrer"
           className="font-medium text-emerald-700 hover:text-emerald-900"
+          eventName="open_data_source"
+          eventProps={{
+            provider: source.provider,
+            external_id: source.externalId,
+            is_primary: source.isPrimary,
+            source_context: "metric_metadata",
+            locale,
+          }}
         >
           {source.externalId}
-        </a>
+        </TrackedExternalLink>
         {separator}
       </span>
     ) : (
@@ -108,11 +117,18 @@ export function HowToNavigateButton({
   locale?: Locale;
 }) {
   return (
-    <Link
+    <TrackedLink
       href={locale ? hrefWithLocale(href, locale) : href}
       className="inline-flex items-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+      eventName="click_cta"
+      eventProps={{
+        href,
+        label,
+        locale: locale ?? "unknown",
+        source: "how_to_navigate_button",
+      }}
     >
       {label}
-    </Link>
+    </TrackedLink>
   );
 }

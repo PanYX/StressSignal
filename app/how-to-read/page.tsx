@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { TrackedLink } from "../../components/analytics/tracked-link";
 import { PageShell } from "../../components/shared/page-shell";
 import { DisclaimerText } from "../../components/shared/metric-metadata";
 import { Badge, Card, SectionHeading } from "../../components/shared/ui-kit";
@@ -156,15 +156,42 @@ export default async function HowToReadPage() {
         <Card className="p-4">
           <SectionHeading title={dictionary.howToRead.nextTitle} />
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={hrefWithLocale("/indicators/vix", locale)} className="inline-flex rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">
+            <TrackedLink
+              href={hrefWithLocale("/indicators/vix", locale)}
+              className="inline-flex rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white"
+              eventName="select_indicator"
+              eventProps={{
+                slug: "vix",
+                source: "how_to_read_next_step",
+                locale,
+              }}
+            >
               {dictionary.howToRead.vixCta}
-            </Link>
-            <Link href={hrefWithLocale("/indicators/stlfsi4", locale)} className="inline-flex rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
+            </TrackedLink>
+            <TrackedLink
+              href={hrefWithLocale("/indicators/stlfsi4", locale)}
+              className="inline-flex rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+              eventName="select_indicator"
+              eventProps={{
+                slug: "stlfsi4",
+                source: "how_to_read_next_step",
+                locale,
+              }}
+            >
               {dictionary.howToRead.stlfsiCta}
-            </Link>
-            <Link href={hrefWithLocale("/data-sources", locale)} className="inline-flex rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
+            </TrackedLink>
+            <TrackedLink
+              href={hrefWithLocale("/data-sources", locale)}
+              className="inline-flex rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+              eventName="click_cta"
+              eventProps={{
+                href: "/data-sources",
+                source: "how_to_read_next_step",
+                locale,
+              }}
+            >
               {dictionary.howToRead.dataCta}
-            </Link>
+            </TrackedLink>
           </div>
         </Card>
         <DisclaimerText dictionary={dictionary} />
