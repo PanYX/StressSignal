@@ -2,11 +2,11 @@ name: CI-CD
 
 env:
   GH_USER: "PanYX"
-  STAGING_HOST: "152.53.170.2"
+  STAGING_HOST: "152.53.209.10"
   STAGING_USER: "deployuser"
   STAGING_SSH_PORT: "2222"
   STAGING_DEPLOY_PATH: "/opt/stresssignal/staging"
-  PROD_HOST: "152.53.170.2"
+  PROD_HOST: "152.53.209.10"
   PROD_USER: "deployuser"
   PROD_SSH_PORT: "2222"
   PROD_DEPLOY_PATH: "/opt/stresssignal/production"
