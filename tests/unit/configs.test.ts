@@ -36,11 +36,11 @@ const expectedSlugs = [
 ];
 
 const expectedSourceIds = [
-  "VIXCLS",
-  "VXVCLS",
-  "VXNCLS",
-  "RVXCLS",
-  "VXDCLS",
+  "VIX",
+  "VIX3M",
+  "VXN",
+  "RVX",
+  "VXD",
   "STLFSI4",
   "NFCI",
   "ANFCI",
@@ -91,6 +91,22 @@ describe("configs", () => {
         expect(source.externalId).toBeTruthy();
       }
     }
+  });
+
+  it("uses first-party sources for volatility and Chicago financial conditions", () => {
+    const sourceFor = (slug: string, externalId: string) =>
+      MVP_INDICATOR_CONFIGS.find((indicator) => indicator.slug === slug)?.sources.find(
+        (source) => source.externalId === externalId,
+      );
+
+    expect(sourceFor("vix", "VIX")?.provider).toBe("cboe");
+    expect(sourceFor("vix-term-proxy", "VIX3M")?.provider).toBe("cboe");
+    expect(sourceFor("vxn", "VXN")?.provider).toBe("cboe");
+    expect(sourceFor("rvx", "RVX")?.provider).toBe("cboe");
+    expect(sourceFor("vxd", "VXD")?.provider).toBe("cboe");
+    expect(sourceFor("nfci", "NFCI")?.provider).toBe("chicagofed");
+    expect(sourceFor("anfci", "ANFCI")?.provider).toBe("chicagofed");
+    expect(sourceFor("stlfsi4", "STLFSI4")?.provider).toBe("fred");
   });
 
   it("maps risk bands for expected scores", () => {

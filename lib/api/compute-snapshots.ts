@@ -109,8 +109,8 @@ const buildSnapshotSeries = async (db: AppDatabase): Promise<BuildResult> => {
     const sourceMap = observationsByIndicator.get(indicator.slug) ?? new Map();
 
     if (indicator.slug === "vix-term-proxy") {
-      const vixPoints = sourceMap.get("VIXCLS") ?? [];
-      const vixvPoints = sourceMap.get("VXVCLS") ?? [];
+      const vixPoints = sourceMap.get("VIX") ?? [];
+      const vixvPoints = sourceMap.get("VIX3M") ?? [];
       const proxyPoints = computeVixTermProxySeries(vixPoints, vixvPoints);
       snapshotSeriesBySlug.set(indicator.slug, {
         rows: {
@@ -126,7 +126,7 @@ const buildSnapshotSeries = async (db: AppDatabase): Promise<BuildResult> => {
     if (indicator.slug === "vvix-vix-ratio") {
       const ratioPoints = computeRatioSeries(
         sourceMap.get("VVIX") ?? [],
-        sourceMap.get("VIXCLS") ?? [],
+        sourceMap.get("VIX") ?? [],
       );
       snapshotSeriesBySlug.set(indicator.slug, {
         rows: {

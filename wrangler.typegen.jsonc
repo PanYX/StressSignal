@@ -22,6 +22,7 @@
     }
   ],
   "vars": {
+    "FRED_FETCH_TRANSPORT": "graph_csv",
     "NEXT_PUBLIC_SITE_URL": "https://stresssignal.app"
   }
 }

@@ -50,6 +50,8 @@ export class PublicSourceAdapterError extends Error {
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_DAILY_LOOKBACK_DAYS = 460;
+const DEFAULT_WEEKLY_LOOKBACK_DAYS = 5 * 366;
+const TRUSTED_CHICAGO_FED_HOSTS = new Set(["api.data.chicagofed.org"]);
 const REQUEST_HEADERS = {
   "user-agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
@@ -995,6 +997,114 @@ export const fetchVhsi = async ({
   };
 };
 
+export const parseChicagoFedNfciCsv = (
+  csv: string,
+  externalId: string,
+  observationStart?: string | null,
+): PublicSourceObservationsParseResult => {
+  const normalizedExternalId = externalId.trim().toUpperCase();
+  if (normalizedExternalId !== "NFCI" && normalizedExternalId !== "ANFCI") {
+    throw new PublicSourceAdapterError(
+      "Unsupported Chicago Fed NFCI series",
+      "unsupported_source",
+      { externalId },
+    );
+  }
+
+  const rows = parseCsv(csv);
+  if (rows.length < 2) {
+    throw new PublicSourceAdapterError(
+      "Chicago Fed NFCI CSV did not include observations",
+      "invalid_csv",
+    );
+  }
+
+  const headers = rows[0]!.map((header) => header.trim());
+  const dateIndex = headers.findIndex(
+    (header) => header.toLowerCase() === "friday_of_week",
+  );
+  const valueIndex = headers.findIndex(
+    (header) => header.toUpperCase() === normalizedExternalId,
+  );
+  if (dateIndex < 0 || valueIndex < 0) {
+    throw new PublicSourceAdapterError(
+      "Chicago Fed NFCI CSV header did not match expected columns",
+      "invalid_csv",
+      { headers, externalId },
+    );
+  }
+
+  const observations: PublicSourceObservationPoint[] = [];
+  const skipped: PublicSourceSkippedObservation[] = [];
+  for (const row of rows.slice(1)) {
+    const raw = Object.fromEntries(
+      headers.map((header, index) => [header, row[index]?.trim() ?? ""]),
+    );
+    const date = normalizeDate(row[dateIndex]);
+    const value = parseNumber(row[valueIndex]);
+
+    if (!date) {
+      skipped.push({ raw, reason: "missing_or_invalid_date" });
+      continue;
+    }
+
+    if (value === null) {
+      skipped.push({ raw, reason: "missing_or_invalid_value" });
+      continue;
+    }
+
+    observations.push({ date, value, raw });
+  }
+
+  return {
+    observations: dedupeAndSort(filterByStart(observations, observationStart)),
+    skipped,
+    transport: "csv",
+  };
+};
+
+export const fetchChicagoFedNfci = async ({
+  externalId,
+  sourceUrl,
+  observationStart,
+  now = new Date(),
+}: PublicSourceFetchRequest): Promise<PublicSourceObservationsParseResult> => {
+  let url: URL;
+  try {
+    url = new URL(sourceUrl);
+  } catch (error) {
+    throw new PublicSourceAdapterError(
+      "Chicago Fed source URL is invalid",
+      "invalid_url",
+      { sourceUrl, cause: error },
+    );
+  }
+
+  if (!TRUSTED_CHICAGO_FED_HOSTS.has(url.hostname)) {
+    throw new PublicSourceAdapterError(
+      "Chicago Fed source host is not allowlisted",
+      "invalid_url",
+      { sourceUrl, hostname: url.hostname },
+    );
+  }
+
+  const payload = await fetchText(url.toString(), {
+    headers: {
+      origin: "https://www.chicagofed.org",
+      referer: "https://www.chicagofed.org/",
+    },
+  });
+
+  const effectiveObservationStart =
+    observationStart ??
+    toIsoDate(getStartDate(null, now, DEFAULT_WEEKLY_LOOKBACK_DAYS));
+  return parseChicagoFedNfciCsv(
+    payload,
+    externalId,
+    effectiveObservationStart,
+  );
+};
+
 type PublicSourceFetcher = (
   request: PublicSourceFetchRequest,
 ) => Promise<PublicSourceObservationsParseResult>;
@@ -1008,6 +1118,7 @@ const PUBLIC_SOURCE_FETCHERS = new Map<string, PublicSourceFetcher>([
   ["nikkei:csv", fetchNikkei225Vi],
   ["hkex:json", fetchVhsi],
   ["edgmap:embedded_json", fetchEdgmapAaiiSentiment],
+  ["chicagofed:csv", fetchChicagoFedNfci],
 ]);
 
 export const PUBLIC_SOURCE_PROVIDER_FETCH_MODES = [...PUBLIC_SOURCE_FETCHERS.keys()].map(

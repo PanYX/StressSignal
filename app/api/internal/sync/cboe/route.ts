@@ -29,6 +29,15 @@ import {
 const PROVIDER = "cboe" as const;
 const JOB_NAME = "sync-cboe";
 const D1_OBSERVATION_WRITE_CHUNK_SIZE = 12;
+const INITIAL_BACKFILL_YEARS = 5;
+
+const getInitialBackfillStartDate = (now: Date): string => {
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  start.setUTCFullYear(start.getUTCFullYear() - INITIAL_BACKFILL_YEARS);
+  return start.toISOString().slice(0, 10);
+};
 
 type SerializedError = {
   code: string;
@@ -330,10 +339,11 @@ export async function POST(request: NextRequest) {
           lastFetchedAt: null,
         };
       const { latestObservationDate, lastFetchedAt } = sourceState;
-      const syncStartDate = getSyncStartDate(
-        latestObservationDate,
-        source.indicatorFrequency,
-      );
+      const syncStartDate =
+        getSyncStartDate(
+          latestObservationDate,
+          source.indicatorFrequency,
+        ) ?? getInitialBackfillStartDate(startedAt);
       const summary: SyncSeriesResult = {
         indicatorSlug: source.indicatorSlug,
         indicatorId: source.indicatorId,
@@ -372,6 +382,7 @@ export async function POST(request: NextRequest) {
         const parsed = await fetchCboeDailyPricesCsv({
           externalId: source.sourceExternalId,
           sourceUrl: source.sourceUrl,
+          observationStart: syncStartDate,
         });
         const skipped = serializeSkipped(parsed.skipped);
         summary.requestedObservations = parsed.observations.length + parsed.skipped.length;

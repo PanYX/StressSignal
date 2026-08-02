@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "stresssignal-scheduler",
+  "main": "workers/scheduler.ts",
+  "workers_dev": false,
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["15 6 * * *"]
+  },
+  "services": [
+    {
+      "binding": "STRESSSIGNAL",
+      "service": "stresssignal"
+    }
+  ],
+  "secrets": {
+    "required": ["CRON_SECRET"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
+

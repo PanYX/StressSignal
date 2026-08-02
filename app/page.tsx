@@ -149,8 +149,8 @@ const getHomeSummaryData = async (dictionary: Dictionary): Promise<HomeSummaryDa
 const getHomeChartData = async (): Promise<HomeChartData> => {
   const [vixPoints, vixvPoints, equityVxn, equityRvx, equityVxd, stlfsi4, nfci, compositePoints] =
     await Promise.all([
-      safe(() => getCachedIndicatorHistoryBySource("vix", "VIXCLS"), [] as ObservationPoint[]),
-      safe(() => getCachedIndicatorHistoryBySource("vix-term-proxy", "VXVCLS"), [] as ObservationPoint[]),
+      safe(() => getCachedIndicatorHistoryBySource("vix", "VIX"), [] as ObservationPoint[]),
+      safe(() => getCachedIndicatorHistoryBySource("vix-term-proxy", "VIX3M"), [] as ObservationPoint[]),
       safe(() => getCachedIndicatorHistory("vxn"), [] as ObservationPoint[]),
       safe(() => getCachedIndicatorHistory("rvx"), [] as ObservationPoint[]),
       safe(() => getCachedIndicatorHistory("vxd"), [] as ObservationPoint[]),

@@ -171,5 +171,11 @@ describe("fred adapter", () => {
     expect(calledUrl.pathname).toBe("/graph/fredgraph.csv");
     expect(calledUrl.searchParams.get("id")).toBe("VIXCLS");
     expect(calledUrl.searchParams.get("cosd")).toBe("2026-01-01");
+    const requestInit = fetchMock.mock.calls.at(0)?.[1] as RequestInit | undefined;
+    const headers = new Headers(requestInit?.headers);
+    expect(headers.get("referer")).toBe(
+      "https://fred.stlouisfed.org/series/VIXCLS",
+    );
+    expect(headers.get("user-agent")).toContain("Mozilla/5.0");
   });
 });

@@ -20,7 +20,7 @@ const chunk = <T,>(items: T[], size: number): T[][] => {
   return output;
 };
 
-async function syncCboe(db: AppDatabase) {
+async function syncCboe(db: AppDatabase, observationStart?: string) {
   const activeSources = await db
     .select({
       indicatorId: indicatorSources.indicatorId,
@@ -52,6 +52,7 @@ async function syncCboe(db: AppDatabase) {
     const parsed = await fetchCboeDailyPricesCsv({
       externalId: source.sourceExternalId,
       sourceUrl: source.sourceUrl,
+      observationStart,
     });
     const rows = parsed.observations.map((item) => ({
       indicatorId: source.indicatorId,
@@ -110,7 +111,16 @@ async function syncCboe(db: AppDatabase) {
 }
 
 async function main() {
-  await withRemoteD1(syncCboe);
+  const sinceIndex = process.argv.indexOf("--since");
+  const observationStart = sinceIndex >= 0 ? process.argv[sinceIndex + 1] : undefined;
+  if (
+    sinceIndex >= 0 &&
+    (!observationStart || !/^\d{4}-\d{2}-\d{2}$/u.test(observationStart))
+  ) {
+    throw new Error("--since must be followed by a YYYY-MM-DD date");
+  }
+
+  await withRemoteD1((db) => syncCboe(db, observationStart));
 }
 
 main().catch((error) => {

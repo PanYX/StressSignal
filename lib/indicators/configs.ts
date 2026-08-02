@@ -149,13 +149,14 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
-        externalId: "VIXCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/VIXCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "VIX",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
-          "Public macro series from FRED. Re-distribution policy: public_ok.",
+          "Official Cboe public historical daily-price CSV for VIX.",
         active: true,
       },
     ],
@@ -180,25 +181,27 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
-        externalId: "VIXCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/VIXCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "VIX",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv",
+        fetchMode: "csv",
         isPrimary: true,
         role: "vix",
         licenseNote:
-          "Primary composite leg for VIX/VXV ratio. Public macro series from FRED.",
+          "Primary VIX leg from the official Cboe historical daily-price CSV.",
         active: true,
       },
       {
-        provider: "fred",
-        externalId: "VXVCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/VXVCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "VIX3M",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX3M_History.csv",
+        fetchMode: "csv",
         isPrimary: false,
         role: "vixv",
         licenseNote:
-          "Secondary composite leg for VIX/VXV ratio. Public macro series from FRED.",
+          "Secondary three-month volatility leg from the official Cboe VIX3M daily-price CSV (the current VXV successor symbol).",
         active: true,
       },
     ],
@@ -223,13 +226,14 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
-        externalId: "VXNCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/VXNCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "VXN",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/VXN_History.csv",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
-          "Public macro series from FRED. Re-distribution policy: public_ok.",
+          "Official Cboe public historical daily-price CSV for VXN.",
         active: true,
       },
     ],
@@ -254,13 +258,14 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
-        externalId: "RVXCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/RVXCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "RVX",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/RVX_History.csv",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
-          "Public macro series from FRED. Re-distribution policy: public_ok.",
+          "Official Cboe public historical daily-price CSV for RVX.",
         active: true,
       },
     ],
@@ -285,13 +290,14 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
-        externalId: "VXDCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/VXDCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "VXD",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/VXD_History.csv",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
-          "Public macro series from FRED. Re-distribution policy: public_ok.",
+          "Official Cboe public historical daily-price CSV for VXD.",
         active: true,
       },
     ],
@@ -319,7 +325,7 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
         provider: "fred",
         externalId: "STLFSI4",
         sourceUrl: "https://fred.stlouisfed.org/series/STLFSI4",
-        fetchMode: "api_json",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
           "Public macro series from FRED. Re-distribution policy: public_ok.",
@@ -347,13 +353,14 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
+        provider: "chicagofed",
         externalId: "NFCI",
-        sourceUrl: "https://fred.stlouisfed.org/series/NFCI",
-        fetchMode: "api_json",
+        sourceUrl:
+          "https://api.data.chicagofed.org/NFCI/nfci-data-series-csv.csv",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
-          "Public macro series from FRED. Re-distribution policy: public_ok.",
+          "Official Chicago Fed NFCI weekly data CSV.",
         active: true,
       },
     ],
@@ -378,13 +385,14 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
     },
     sources: [
       {
-        provider: "fred",
+        provider: "chicagofed",
         externalId: "ANFCI",
-        sourceUrl: "https://fred.stlouisfed.org/series/ANFCI",
-        fetchMode: "api_json",
+        sourceUrl:
+          "https://api.data.chicagofed.org/NFCI/nfci-data-series-csv.csv",
+        fetchMode: "csv",
         isPrimary: true,
         licenseNote:
-          "Public macro series from FRED. Re-distribution policy: public_ok.",
+          "Official Chicago Fed ANFCI weekly data CSV.",
         active: true,
       },
     ],
@@ -487,14 +495,15 @@ export const MVP_INDICATOR_CONFIGS: readonly IndicatorConfig[] = [
         active: true,
       },
       {
-        provider: "fred",
-        externalId: "VIXCLS",
-        sourceUrl: "https://fred.stlouisfed.org/series/VIXCLS",
-        fetchMode: "api_json",
+        provider: "cboe",
+        externalId: "VIX",
+        sourceUrl:
+          "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv",
+        fetchMode: "csv",
         isPrimary: false,
         role: "vix",
         licenseNote:
-          "Secondary leg for VVIX/VIX ratio. Public macro series from FRED.",
+          "Secondary VIX leg from the official Cboe historical daily-price CSV.",
         active: true,
       },
     ],

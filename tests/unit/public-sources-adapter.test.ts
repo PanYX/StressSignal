@@ -4,6 +4,7 @@ import {
   PUBLIC_SOURCE_PROVIDER_FETCH_MODES,
   fetchPublicSourceObservations,
   parseCboePutCallPayload,
+  parseChicagoFedNfciCsv,
   parseEdgmapAaiiSentimentHtml,
   parseNaaimExposureTableHtml,
   parseNikkei225ViCsv,
@@ -129,6 +130,21 @@ describe("public source adapter", () => {
     expect(parsed.skipped).toHaveLength(1);
   });
 
+  it("parses the official Chicago Fed NFCI/ANFCI weekly CSV", () => {
+    const csv = [
+      "Friday_of_Week,NFCI,ANFCI,Risk,Credit,Leverage,Nonfinancial_Leverage",
+      "07/17/2026,-0.544,-0.549,-0.614,-0.056,0.161,-0.379",
+      "07/24/2026,-0.554,-0.56,-0.618,-0.063,0.119,-0.376",
+    ].join("\n");
+
+    expect(parseChicagoFedNfciCsv(csv, "NFCI", "2026-07-20").observations).toEqual([
+      expect.objectContaining({ date: "2026-07-24", value: -0.554 }),
+    ]);
+    expect(parseChicagoFedNfciCsv(csv, "ANFCI").observations.at(-1)).toEqual(
+      expect.objectContaining({ date: "2026-07-24", value: -0.56 }),
+    );
+  });
+
   it("routes only configured public provider/fetch-mode pairs", async () => {
     for (const expected of [
       { provider: "cboe", fetchMode: "next_rsc" },
@@ -138,6 +154,7 @@ describe("public source adapter", () => {
       { provider: "nikkei", fetchMode: "csv" },
       { provider: "hkex", fetchMode: "json" },
       { provider: "edgmap", fetchMode: "embedded_json" },
+      { provider: "chicagofed", fetchMode: "csv" },
     ]) {
       expect(
         PUBLIC_SOURCE_PROVIDER_FETCH_MODES.some(

@@ -519,12 +519,21 @@ export async function getIndicatorHistory(
     })
     .from(observations)
     .innerJoin(indicators, eq(indicators.id, observations.indicatorId))
+    .innerJoin(
+      indicatorSources,
+      and(
+        eq(indicatorSources.indicatorId, observations.indicatorId),
+        eq(indicatorSources.provider, observations.sourceProvider),
+        eq(indicatorSources.externalId, observations.sourceExternalId),
+        eq(indicatorSources.active, true),
+      ),
+    )
     .where(predicate)
     .orderBy(asc(observations.observationDate), asc(observations.sourceExternalId));
 
   if (slug === "vix-term-proxy") {
-    const vixRows = rows.filter((row) => row.sourceExternalId === "VIXCLS");
-    const vixvRows = rows.filter((row) => row.sourceExternalId === "VXVCLS");
+    const vixRows = rows.filter((row) => row.sourceExternalId === "VIX");
+    const vixvRows = rows.filter((row) => row.sourceExternalId === "VIX3M");
     const vixPoints = toNumericPoints(vixRows);
     const vixvPoints = toNumericPoints(vixvRows);
     return computeVixTermProxySeries(vixPoints, vixvPoints).map((point) => ({
@@ -535,7 +544,7 @@ export async function getIndicatorHistory(
 
   if (slug === "vvix-vix-ratio") {
     const vvixRows = rows.filter((row) => row.sourceExternalId === "VVIX");
-    const vixRows = rows.filter((row) => row.sourceExternalId === "VIXCLS");
+    const vixRows = rows.filter((row) => row.sourceExternalId === "VIX");
     const vvixPoints = toNumericPoints(vvixRows);
     const vixPoints = toNumericPoints(vixRows);
     return computeRatioSeries(vvixPoints, vixPoints).map((point) => ({
@@ -619,6 +628,15 @@ export async function getIndicatorHistoryBySource(
     })
     .from(observations)
     .innerJoin(indicators, eq(indicators.id, observations.indicatorId))
+    .innerJoin(
+      indicatorSources,
+      and(
+        eq(indicatorSources.indicatorId, observations.indicatorId),
+        eq(indicatorSources.provider, observations.sourceProvider),
+        eq(indicatorSources.externalId, observations.sourceExternalId),
+        eq(indicatorSources.active, true),
+      ),
+    )
     .where(and(...filters))
     .orderBy(asc(observations.observationDate));
 
@@ -670,6 +688,15 @@ export async function getObservationsForCompute(
     })
     .from(observations)
     .innerJoin(indicators, eq(observations.indicatorId, indicators.id))
+    .innerJoin(
+      indicatorSources,
+      and(
+        eq(indicatorSources.indicatorId, observations.indicatorId),
+        eq(indicatorSources.provider, observations.sourceProvider),
+        eq(indicatorSources.externalId, observations.sourceExternalId),
+        eq(indicatorSources.active, true),
+      ),
+    )
     .where(and(inArray(indicators.slug, slugs), getStatusActive))
     .orderBy(
       asc(observations.indicatorId),
@@ -759,8 +786,8 @@ export async function getCompositeRiskScoreHistory(
     filterByCutoff(points, cutoff);
 
   const vixPoints = allWindowPoints(getSeries("vix"));
-  const rawProxyVixv = allWindowPoints(getSeries("vix-term-proxy", "VXVCLS"));
-  const fallbackProxyVixv = allWindowPoints(getSeries("vix", "VXVCLS"));
+  const rawProxyVixv = allWindowPoints(getSeries("vix-term-proxy", "VIX3M"));
+  const fallbackProxyVixv = allWindowPoints(getSeries("vix", "VIX3M"));
   const vixvPoints = rawProxyVixv.length > 0 ? rawProxyVixv : fallbackProxyVixv;
   const vxnPoints = allWindowPoints(getSeries("vxn"));
   const rvxPoints = allWindowPoints(getSeries("rvx"));
@@ -915,11 +942,11 @@ const computeCompositeFromCurrentRows = async (): Promise<number | null> => {
   const vixPoints = getIndicatorSeries("vix");
   const vixvPoints = (() => {
     const proxySeries = observationsByIndicator.get("vix-term-proxy");
-    if (proxySeries && proxySeries.has("VXVCLS")) {
-      return proxySeries.get("VXVCLS") ?? [];
+    if (proxySeries && proxySeries.has("VIX3M")) {
+      return proxySeries.get("VIX3M") ?? [];
     }
 
-    return getIndicatorSeries("vix", "VXVCLS");
+    return getIndicatorSeries("vix", "VIX3M");
   })();
   const proxyRow = snapshotBySlug.get("vix-term-proxy");
   const vixVxvPctRank =

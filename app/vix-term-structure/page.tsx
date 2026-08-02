@@ -268,7 +268,7 @@ export default async function VixTermStructurePage() {
               <li>
                 <TrackedExternalLink
                   className="font-semibold text-emerald-800 underline"
-                  href="https://ww2.cboe.com/tradable_products/vix/term_structure/"
+                  href="https://www.cboe.com/tradable-products/vix/term-structure"
                   eventName="open_reference_link"
                   eventProps={{ source: "vix_term_structure_source_trail", target: "cboe_vix_term_structure", locale }}
                 >
@@ -288,11 +288,11 @@ export default async function VixTermStructurePage() {
               <li>
                 <TrackedExternalLink
                   className="font-semibold text-emerald-800 underline"
-                  href="https://fred.stlouisfed.org/series/VIXCLS"
+                  href="https://www.cboe.com/tradable_products/vix/vix_historical_data"
                   eventName="open_reference_link"
-                  eventProps={{ source: "vix_term_structure_source_trail", target: "fred_vixcls", locale }}
+                  eventProps={{ source: "vix_term_structure_source_trail", target: "cboe_vix_history", locale }}
                 >
-                  FRED VIXCLS
+                  Cboe VIX historical data
                 </TrackedExternalLink>
               </li>
             </ul>

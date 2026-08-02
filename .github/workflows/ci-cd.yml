@@ -62,6 +62,9 @@ jobs:
       - name: Enforce Worker bundle budget
         run: pnpm bundle:check
 
+      - name: Build scheduler Worker
+        run: pnpm exec wrangler deploy --config wrangler.scheduler.jsonc --dry-run
+
   deploy-production:
     name: Deploy production Worker
     needs: validate
@@ -97,5 +100,8 @@ jobs:
       - name: Build OpenNext Worker
         run: pnpm exec opennextjs-cloudflare build
 
-      - name: Deploy Worker
+      - name: Deploy application Worker
         run: pnpm exec opennextjs-cloudflare deploy -- --keep-vars
+
+      - name: Deploy scheduler Worker
+        run: pnpm deploy:scheduler

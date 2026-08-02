@@ -86,6 +86,8 @@ const BASE_URL = "https://api.stlouisfed.org/fred";
 const GRAPH_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv";
 const FILE_TYPE = "json";
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
+const PUBLIC_GRAPH_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36";
 
 const isSupportedSeriesId = (value: string): value is SupportedFredSeriesId => {
   return (SUPPORTED_FRED_SERIES_IDS as readonly string[]).includes(value);
@@ -356,7 +358,14 @@ const fetchFredGraphCsvObservations = async ({
   try {
     response = await fetch(url.toString(), {
       method: "GET",
-      headers: { accept: "text/csv,application/csv,text/plain;q=0.9" },
+      headers: {
+        accept: "text/csv,application/csv,text/plain;q=0.9",
+        referer: `https://fred.stlouisfed.org/series/${seriesId}`,
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "same-origin",
+        "user-agent": PUBLIC_GRAPH_USER_AGENT,
+      },
     });
   } catch (error) {
     throw new FredAdapterError(

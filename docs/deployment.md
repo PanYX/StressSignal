@@ -9,12 +9,14 @@ in the application runtime.
 | Resource | Value |
 | --- | --- |
 | Worker | `stresssignal` |
+| Scheduler Worker | `stresssignal-scheduler` |
 | Production route | `stresssignal.app/*` |
 | D1 binding | `DB` |
 | D1 database | `stresssignal-db` |
 | D1 database ID | `682145ee-052a-4c94-8e68-5e30e4583964` |
 | D1 jurisdiction | EU |
 | Wrangler config | `wrangler.jsonc` |
+| Scheduler config | `wrangler.scheduler.jsonc` |
 | D1 migrations | `drizzle/d1` |
 
 The Worker bundle is generated under `.open-next/`, which is intentionally
@@ -36,12 +38,23 @@ This budget leaves headroom below the Workers Free compressed-script limit.
 ## One-time Cloudflare setup
 
 Wrangler must be authenticated and the following Worker secrets must be set in
-Cloudflare. They are not committed to the repository.
+Cloudflare. They are not committed to the repository. `CRON_SECRET` must have
+the same value on the application Worker and the scheduler Worker because the
+scheduler authenticates each private internal request with it.
 
 ```bash
 pnpm exec wrangler secret put CRON_SECRET
-pnpm exec wrangler secret put FRED_API_KEY
+pnpm exec wrangler secret put CRON_SECRET --config wrangler.scheduler.jsonc
 ```
+
+The scheduler Worker is already provisioned in production. In a brand-new
+Cloudflare account, provide `CRON_SECRET` on its initial deploy with Wrangler's
+`--secrets-file` option, then use the commands above for later rotations.
+
+`FRED_API_KEY` is optional and is not required by the production schedule.
+`FRED_FETCH_TRANSPORT=graph_csv` makes the remaining FRED series use the public
+CSV download, while VIX/VIX3M/VXN/RVX/VXD come directly from Cboe and
+NFCI/ANFCI come directly from the Chicago Fed data API.
 
 Optional runtime values such as `GOOGLE_ADSENSE_PUBLISHER_ID` can be added in
 the Cloudflare dashboard or with `wrangler secret put`. The public site origin
@@ -59,6 +72,13 @@ NEXT_PUBLIC_SITE_URL=https://stresssignal.app pnpm run deploy
 `pnpm run deploy` builds the OpenNext Worker and deploys with `--keep-vars`, so
 runtime variables and secrets configured in Cloudflare are preserved.
 
+Deploy the small scheduler Worker separately after application endpoints or
+schedule configuration change:
+
+```bash
+pnpm deploy:scheduler
+```
+
 The first Worker deployment creates a `workers.dev` endpoint. The production
 Worker route is declared in `wrangler.jsonc`, so deploys attach the Worker in
 front of the existing proxied `stresssignal.app` DNS record without replacing
@@ -69,11 +89,11 @@ verification target.
 
 The `CI-CD` workflow validates pushes and pull requests targeting `test` or
 `main`. It runs generated-file checks, lint, TypeScript, unit tests, local-D1
-integration tests, and an OpenNext Worker build.
+integration tests, an OpenNext Worker build, and a scheduler Worker dry run.
 
-Only a push to `main` deploys. The `test` branch is validation-only until a
-separate staging D1 database is provisioned, preventing staging code from
-writing production data.
+Only a push to `main` deploys the application Worker and then the scheduler
+Worker. The `test` branch is validation-only until a separate staging D1
+database is provisioned, preventing staging code from writing production data.
 
 Required GitHub production secrets:
 
@@ -82,8 +102,8 @@ Required GitHub production secrets:
 | `CLOUDFLARE_API_TOKEN` | Apply D1 migrations and deploy the Worker |
 | `CLOUDFLARE_ACCOUNT_ID` | Select the Cloudflare account |
 
-Worker runtime secrets such as `CRON_SECRET` and `FRED_API_KEY` remain in
-Cloudflare and are preserved during CI deployments.
+Worker runtime secrets such as `CRON_SECRET` remain in Cloudflare and are
+preserved during CI deployments.
 
 ## Database migration and backup
 
@@ -120,5 +140,16 @@ curl -sS https://stresssignal.app/robots.txt
 curl -sS https://stresssignal.app/sitemap.xml
 ```
 
-Then verify the internal route authentication and run scheduled syncs through
-the existing scheduler using the `CRON_SECRET` bearer token.
+The separate `stresssignal-scheduler` Worker has a Cron Trigger at `06:15 UTC`
+every day. It runs the following chain through a private service binding to the
+application Worker:
+
+1. sync public sources;
+2. sync CBOE sources;
+3. sync the remaining FRED public-CSV sources;
+4. recompute indicator snapshots;
+5. revalidate data caches.
+
+Each step is retried once for transient failures. A failed step does not prevent
+later steps from running, but the Cron invocation is marked failed after the
+chain completes so Workers Logs exposes the problem.

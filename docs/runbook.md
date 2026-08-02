@@ -8,10 +8,13 @@ or accept a PostgreSQL connection URL at runtime.
 Relevant environment variables:
 
 - `NEXT_PUBLIC_SITE_URL`: public origin used for canonical and social URLs.
-- `FRED_API_KEY`: required in the production Worker; FRED's public graph CSV
-  remains a fallback but can reject Cloudflare egress.
-- `FRED_FETCH_TRANSPORT`: `auto`, `api_json`, or `graph_csv`.
+- `FRED_API_KEY`: optional; the production schedule does not require it.
+- `FRED_FETCH_TRANSPORT`: set to `graph_csv` in production so the remaining
+  FRED series use the public CSV download without an API key.
 - `CRON_SECRET`: bearer token for internal sync, compute, and revalidate routes.
+
+The application Worker and `stresssignal-scheduler` Worker must hold the same
+`CRON_SECRET` value.
 
 Treat `.env.local` as sensitive. Its old `DATABASE_URL` is only a temporary
 source for the one-off Neon export command during the rollback window.
@@ -55,13 +58,35 @@ The sync and recompute scripts target remote D1 explicitly:
 ```bash
 pnpm sync:fred
 pnpm sync:public-sources
-pnpm exec tsx scripts/sync-cboe.ts
+pnpm exec tsx scripts/sync-cboe.ts --since 2021-08-02
 pnpm exec tsx scripts/recompute-snapshots.ts --write
 ```
 
-## 4. API-triggered sync flow
+## 4. Scheduled and API-triggered sync flow
+
+The `stresssignal-scheduler` Worker runs a complete refresh every day at
+`06:15 UTC` through the Cron Trigger in `wrangler.scheduler.jsonc`:
+
+```text
+public sources -> CBOE -> FRED public CSV -> compute snapshots -> revalidate caches
+```
+
+The scheduled entrypoint uses the `STRESSSIGNAL` service binding, so the bearer
+token and internal routes never travel over the public Internet. Cboe provides
+VIX/VIX3M/VXN/RVX/VXD, the Chicago Fed API provides NFCI/ANFCI, and the public
+FRED graph CSV provides STLFSI4 and the remaining configured FRED series.
+
+For manual recovery, invoke the same internal steps in this order:
 
 ```bash
+curl -X POST \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  "${NEXT_PUBLIC_SITE_URL}/api/internal/sync/public-sources"
+
+curl -X POST \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  "${NEXT_PUBLIC_SITE_URL}/api/internal/sync/cboe"
+
 curl -X POST \
   -H "Authorization: Bearer ${CRON_SECRET}" \
   "${NEXT_PUBLIC_SITE_URL}/api/internal/sync/fred"
@@ -73,7 +98,7 @@ curl -X POST \
 curl -X POST \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${CRON_SECRET}" \
-  -d '{"tags":["market-risk-dashboard","indicators"]}' \
+  -d '{"tags":["summary","indicators","observations","data-sources","commentary"]}' \
   "${NEXT_PUBLIC_SITE_URL}/api/internal/revalidate"
 ```
 

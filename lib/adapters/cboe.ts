@@ -126,6 +126,7 @@ const chooseValueColumn = (headers: string[], externalId: string): string => {
 export const parseCboeDailyPricesCsv = (
   csv: string,
   externalId: string,
+  observationStart?: string | null,
 ): CboeObservationsParseResult => {
   const lines = csv
     .replace(/^\uFEFF/u, "")
@@ -176,7 +177,9 @@ export const parseCboeDailyPricesCsv = (
       continue;
     }
 
-    observations.push({ date, value, raw });
+    if (!observationStart || date >= observationStart) {
+      observations.push({ date, value, raw });
+    }
   }
 
   return { observations, skipped, transport: "csv" };
@@ -185,9 +188,11 @@ export const parseCboeDailyPricesCsv = (
 export const fetchCboeDailyPricesCsv = async ({
   externalId,
   sourceUrl,
+  observationStart,
 }: {
   externalId: string;
   sourceUrl: string;
+  observationStart?: string | null;
 }): Promise<CboeObservationsParseResult> => {
   let url: URL;
   try {
@@ -229,7 +234,11 @@ export const fetchCboeDailyPricesCsv = async ({
   }
 
   try {
-    return parseCboeDailyPricesCsv(await response.text(), externalId);
+    return parseCboeDailyPricesCsv(
+      await response.text(),
+      externalId,
+      observationStart,
+    );
   } catch (error) {
     if (error instanceof CboeAdapterError) {
       throw error;
