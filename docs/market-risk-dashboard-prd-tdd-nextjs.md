@@ -4,6 +4,10 @@
 日期：2026-05-28  
 适用对象：产品、设计、研发、运营、Codex
 
+> 2026-08-01 技术更新：生产数据层已从 Managed PostgreSQL 迁移到
+> Cloudflare D1，部署目标改为 Cloudflare Workers + OpenNext。下文涉及旧
+> PostgreSQL/Vercel 方案的描述，以本更新和 `docs/deployment.md` 为准。
+
 ---
 
 ## 1. 立项结论
@@ -18,9 +22,9 @@
 **本项目推荐采用：**
 - 前端框架：Next.js 16.x + App Router + TypeScript
 - 渲染模式：Server Components 为主，图表模块局部 Client Components
-- 数据存储：Managed PostgreSQL + Drizzle ORM
-- 部署：Vercel
-- 定时同步：Vercel Cron（生产建议 Pro）或外部定时器打内网接口
+- 数据存储：Cloudflare D1 + Drizzle ORM
+- 部署：Cloudflare Workers + OpenNext
+- 定时同步：Cloudflare Cron Triggers 或外部定时器打内部接口
 - 内容系统：文件型 MDX
 - 首版原则：**先做可公开、可持续、可解释的版本，不先碰高授权风险数据**
 
@@ -599,12 +603,12 @@ risk_score =
 - 语言：TypeScript
 - UI：Tailwind CSS + shadcn/ui
 - 图表：Recharts（MVP）
-- 数据库：Managed PostgreSQL
+- 数据库：Cloudflare D1
 - ORM：Drizzle ORM
 - 校验：Zod
 - 内容：MDX
 - 测试：Vitest + Playwright
-- 部署：Vercel
+- 部署：Cloudflare Workers + OpenNext
 - 监控：Sentry（推荐）
 - 分析：Plausible 或 PostHog（可选）
 
@@ -639,7 +643,7 @@ risk_score =
           ↓
    Sync Jobs（Route Handler + Cron）
           ↓
-     PostgreSQL（原始观察值 + 快照）
+     Cloudflare D1（原始观察值 + 快照）
           ↓
   Data Access Layer（聚合、分位、变化）
           ↓
@@ -1154,7 +1158,6 @@ tests/
 
 ```bash
 NEXT_PUBLIC_SITE_URL=
-DATABASE_URL=
 FRED_API_KEY=
 CRON_SECRET=
 SENTRY_DSN=
@@ -1257,10 +1260,10 @@ BASIC_AUTH_PASSWORD=
 - 使用 Next.js App Router
 - 使用 TypeScript
 - 使用 Server Components 为主
-- 使用 PostgreSQL
+- 使用 Cloudflare D1
 - 使用 Drizzle ORM
 - 使用 FRED 作为首版主数据源
-- 使用 Vercel 作为部署平台
+- 使用 Cloudflare Workers + OpenNext 作为部署平台
 - 使用 MDX 管内容
 
 ### 可以后置

@@ -76,7 +76,7 @@
 ## 2. 建立数据层
 
 ### 技术要求
-- 使用 PostgreSQL
+- 使用 Cloudflare D1
 - 使用 Drizzle ORM
 - 建立：
   - `indicators`

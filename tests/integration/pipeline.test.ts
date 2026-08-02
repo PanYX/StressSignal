@@ -1,49 +1,62 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
+import {
+  getPlatformProxy,
+  unstable_splitSqlQuery,
+  type PlatformProxy,
+} from "wrangler";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { createDb } from "../../lib/db/client";
+import { seedIndicatorMetadata } from "../../lib/db/seed";
 import validObservations from "../fixtures/fred/valid-observations.json";
+
+const cloudflareState = vi.hoisted(() => ({
+  database: undefined as D1Database | undefined,
+}));
+
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: (options?: { async?: boolean }) => {
+    if (!cloudflareState.database) {
+      throw new Error("Integration D1 binding has not been initialized.");
+    }
+
+    const context = { env: { DB: cloudflareState.database } };
+    return options?.async ? Promise.resolve(context) : context;
+  },
+}));
 
 type SyncRouteModule = typeof import("../../app/api/internal/sync/fred/route");
 type ComputeRouteModule = typeof import("../../app/api/internal/compute-snapshots/route");
 type SummaryRouteModule = typeof import("../../app/api/v1/summary/route");
 type CommentaryRouteModule = typeof import("../../app/api/v1/commentary/route");
-type DbClientModule = typeof import("../../lib/db/client");
+
+type SyncResponseBody = {
+  status: string;
+  summary: { hasFailures: boolean };
+  counts: { observationsUpserted: number };
+  series: Array<{ requestedObservations: number; sourceExternalId: string }>;
+};
+
+type ComputeResponseBody = {
+  rowsComputed: number;
+  rowsWritten: number;
+  compositeRiskScore: number | null;
+};
+
+type SummaryResponseBody = {
+  asOf: string | null;
+  riskScore: number | null;
+  cards: unknown[];
+};
+
+type CommentaryResponseBody = {
+  scope: string;
+  branches: unknown[];
+};
 
 const TEST_SECRET = "integration-secret";
 const TEST_FRED_API_KEY = "fake-api-key";
-const TEST_DB_PORT = 56000 + Math.floor(Math.random() * 1000);
-const TEST_CONTAINER_NAME = `stresssignal-t011-integration-${Date.now()}`;
-const DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${TEST_DB_PORT}/stresssignal`;
-
-const withTestEnv = (extra: Record<string, string> = {}) => ({
-  ...process.env,
-  DATABASE_URL,
-  CRON_SECRET: TEST_SECRET,
-  FRED_API_KEY: TEST_FRED_API_KEY,
-  ...extra,
-});
-
-const runCommand = (command: string) =>
-  execSync(command, {
-    stdio: "pipe",
-    env: withTestEnv(),
-  });
-
-const waitForDatabase = async () => {
-  for (let attempt = 1; attempt <= 60; attempt += 1) {
-    try {
-      execSync(`docker exec ${TEST_CONTAINER_NAME} pg_isready -U postgres -d stresssignal`, {
-        stdio: "pipe",
-      });
-      return;
-    } catch {
-      if (attempt >= 60) {
-        throw new Error(`Timed out waiting for Postgres container ${TEST_CONTAINER_NAME}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-  }
-};
 
 const buildMockResponse = () =>
   new Response(JSON.stringify(validObservations), {
@@ -54,78 +67,62 @@ const buildMockResponse = () =>
 const buildSyncRequest = (token?: string) =>
   new Request("http://127.0.0.1/api/internal/sync/fred", {
     method: "POST",
-    headers: token
-      ? {
-          Authorization: `Bearer ${token}`,
-        }
-      : undefined,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 
 type NextRequestLike = Parameters<SyncRouteModule["POST"]>[0];
 const asNextRequest = (request: Request): NextRequestLike => request as NextRequestLike;
 
+const responseJson = async <T,>(response: Response): Promise<T> =>
+  (await response.json()) as T;
+
 describe("data pipeline integration", () => {
+  let platform: PlatformProxy<{ DB: D1Database }>;
   let syncPost: SyncRouteModule["POST"];
   let computePost: ComputeRouteModule["POST"];
   let summaryGet: SummaryRouteModule["GET"];
   let commentaryGet: CommentaryRouteModule["GET"];
-  let closeDb: DbClientModule["closeDb"];
 
   beforeAll(async () => {
-    try {
-      execSync(`docker rm -f ${TEST_CONTAINER_NAME}`, {
-        stdio: "pipe",
-      });
-    } catch {
-      // expected if the container does not exist yet
-    }
+    platform = await getPlatformProxy<{ DB: D1Database }>({
+      configPath: "wrangler.test.jsonc",
+      envFiles: [],
+      persist: false,
+      remoteBindings: false,
+    });
+    cloudflareState.database = platform.env.DB;
 
-    execSync(
-      `docker run -d --name ${TEST_CONTAINER_NAME} ` +
-        "-e POSTGRES_USER=postgres " +
-        "-e POSTGRES_PASSWORD=postgres " +
-        "-e POSTGRES_DB=stresssignal " +
-        `-p ${TEST_DB_PORT}:5432 ` +
-        "postgres:16-alpine",
-      { stdio: "pipe" },
+    const migration = readFileSync(
+      "drizzle/d1/0000_special_amphibian.sql",
+      "utf8",
     );
+    const statements = unstable_splitSqlQuery(migration).filter(
+      (statement) => statement.trim().length > 0,
+    );
+    await platform.env.DB.batch(
+      statements.map((statement) => platform.env.DB.prepare(statement)),
+    );
+    await seedIndicatorMetadata(createDb(platform.env.DB));
 
-    await waitForDatabase();
-
-    runCommand("pnpm run db:migrate");
-    runCommand("pnpm seed:indicators");
-
-    process.env.DATABASE_URL = DATABASE_URL;
     process.env.CRON_SECRET = TEST_SECRET;
     process.env.FRED_API_KEY = TEST_FRED_API_KEY;
 
-    const [sync, compute, summary, commentary, dbClient] = await Promise.all([
+    const [sync, compute, summary, commentary] = await Promise.all([
       import("../../app/api/internal/sync/fred/route"),
       import("../../app/api/internal/compute-snapshots/route"),
       import("../../app/api/v1/summary/route"),
       import("../../app/api/v1/commentary/route"),
-      import("../../lib/db/client"),
     ]);
 
     syncPost = sync.POST;
     computePost = compute.POST;
     summaryGet = summary.GET;
     commentaryGet = commentary.GET;
-    closeDb = dbClient.closeDb;
   });
 
   afterAll(async () => {
-    if (typeof closeDb === "function") {
-      await closeDb();
-    }
-
-    try {
-      execSync(`docker rm -f ${TEST_CONTAINER_NAME}`, {
-        stdio: "pipe",
-      });
-    } catch {
-      // best-effort cleanup
-    }
+    cloudflareState.database = undefined;
+    await platform.dispose();
   });
 
   it("sync -> parse -> upsert -> compute -> summary + commentary chain works", async () => {
@@ -134,7 +131,7 @@ describe("data pipeline integration", () => {
       .mockImplementation(async () => buildMockResponse());
 
     const syncResponse = await syncPost(asNextRequest(buildSyncRequest(TEST_SECRET)));
-    const syncBody = await syncResponse.json();
+    const syncBody = await responseJson<SyncResponseBody>(syncResponse);
 
     expect(syncResponse.status).toBe(200);
     expect(syncBody.status).toBe("success");
@@ -142,8 +139,8 @@ describe("data pipeline integration", () => {
     expect(syncBody.counts.observationsUpserted).toBeGreaterThan(0);
     const fetchedFredSeries = new Set(
       syncBody.series
-        .filter((item: { requestedObservations: number }) => item.requestedObservations > 0)
-        .map((item: { sourceExternalId: string }) => item.sourceExternalId),
+        .filter((item) => item.requestedObservations > 0)
+        .map((item) => item.sourceExternalId),
     );
     expect(fetchMock).toHaveBeenCalledTimes(fetchedFredSeries.size);
 
@@ -153,21 +150,22 @@ describe("data pipeline integration", () => {
       asNextRequest(
         new Request("http://127.0.0.1/api/internal/compute-snapshots", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${TEST_SECRET}`,
-          },
+          headers: { Authorization: `Bearer ${TEST_SECRET}` },
         }),
       ),
     );
-    const computeBody = await computeResponse.json();
+    const computeBody = await responseJson<ComputeResponseBody>(computeResponse);
 
     expect(computeResponse.status).toBe(200);
     expect(computeBody.rowsComputed).toBeGreaterThan(0);
     expect(computeBody.rowsWritten).toBe(computeBody.rowsComputed);
-    expect(computeBody.compositeRiskScore === null || typeof computeBody.compositeRiskScore === "number").toBe(true);
+    expect(
+      computeBody.compositeRiskScore === null ||
+        typeof computeBody.compositeRiskScore === "number",
+    ).toBe(true);
 
     const summaryResponse = await summaryGet();
-    const summaryBody = await summaryResponse.json();
+    const summaryBody = await responseJson<SummaryResponseBody>(summaryResponse);
 
     expect(summaryResponse.status).toBe(200);
     expect(summaryBody.asOf).toBeTruthy();
@@ -178,7 +176,9 @@ describe("data pipeline integration", () => {
     const commentaryResponse = await commentaryGet(
       new Request("http://127.0.0.1/api/v1/commentary?scope=daily"),
     );
-    const commentaryBody = await commentaryResponse.json();
+    const commentaryBody = await responseJson<CommentaryResponseBody>(
+      commentaryResponse,
+    );
 
     expect(commentaryResponse.status).toBe(200);
     expect(commentaryBody.scope).toBe("daily");

@@ -584,7 +584,7 @@ const parseXlsxRows = (arrayBuffer: ArrayBuffer): Array<Record<string, string>> 
   });
 };
 
-const extractNaaimWorkbookUrl = (html: string, sourceUrl: string): string => {
+const extractNaaimWorkbookUrl = (html: string, sourceUrl: string): string | null => {
   const match =
     /https:\/\/naaim\.org\/wp-content\/uploads\/[^"'\s]+USE_Data-since-Inception_[^"'\s]+\.xlsx/u.exec(
       html,
@@ -593,11 +593,63 @@ const extractNaaimWorkbookUrl = (html: string, sourceUrl: string): string => {
       html,
     );
 
-  if (!match) {
-    throw new PublicSourceAdapterError("NAAIM page did not include workbook URL", "invalid_html");
+  return match ? new URL(match[0], sourceUrl).toString() : null;
+};
+
+const htmlCellText = (value: string): string =>
+  decodeXml(value.replace(/<[^>]*>/gu, " ")).replace(/\s+/gu, " ").trim();
+
+export const parseNaaimExposureTableHtml = (
+  html: string,
+  observationStart?: string | null,
+): PublicSourceObservationsParseResult => {
+  const tableBody = /<tbody\b[^>]*>([\s\S]*?)<\/tbody>/iu.exec(html)?.[1] ?? html;
+  const observations: PublicSourceObservationPoint[] = [];
+  const skipped: PublicSourceSkippedObservation[] = [];
+  let rowCount = 0;
+
+  for (const rowMatch of tableBody.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/giu)) {
+    const cells = [...rowMatch[1]!.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/giu)].map(
+      (cell) => htmlCellText(cell[1] ?? ""),
+    );
+    if (cells.length === 0) {
+      continue;
+    }
+
+    rowCount += 1;
+    const raw = {
+      date: cells[0] ?? "",
+      naaimNumber: cells[1] ?? "",
+      access: "delayed_public_table",
+    };
+    const date = normalizeDate(raw.date);
+    const value = parseNumber(raw.naaimNumber);
+
+    if (!date) {
+      skipped.push({ raw, reason: "missing_or_invalid_date" });
+      continue;
+    }
+
+    if (value === null) {
+      skipped.push({ raw, reason: "missing_or_invalid_value" });
+      continue;
+    }
+
+    observations.push({ date, value, raw });
   }
 
-  return new URL(match[0], sourceUrl).toString();
+  if (rowCount === 0) {
+    throw new PublicSourceAdapterError(
+      "NAAIM public table did not include data rows",
+      "invalid_html",
+    );
+  }
+
+  return {
+    observations: dedupeAndSort(filterByStart(observations, observationStart)),
+    skipped,
+    transport: "html_table_delayed",
+  };
 };
 
 export const fetchNaaimExposure = async ({
@@ -606,6 +658,13 @@ export const fetchNaaimExposure = async ({
 }: PublicSourceFetchRequest): Promise<PublicSourceObservationsParseResult> => {
   const page = await fetchText(sourceUrl);
   const workbookUrl = extractNaaimWorkbookUrl(page, sourceUrl);
+  if (!workbookUrl) {
+    const table = await fetchText("https://index.naaim.org/embeddable/table", {
+      headers: { referer: sourceUrl },
+    });
+    return parseNaaimExposureTableHtml(table, observationStart);
+  }
+
   const workbook = await fetchArrayBuffer(workbookUrl, {
     headers: { referer: sourceUrl },
   });
@@ -943,6 +1002,7 @@ type PublicSourceFetcher = (
 const PUBLIC_SOURCE_FETCHERS = new Map<string, PublicSourceFetcher>([
   ["cboe:next_rsc", fetchCboePutCallRatio],
   ["naaim:xlsx", fetchNaaimExposure],
+  ["naaim:public_table", fetchNaaimExposure],
   ["stoxx:ajax_json", fetchVstoxx],
   ["nse:json", fetchIndiaVix],
   ["nikkei:csv", fetchNikkei225Vi],

@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "stresssignal-e2e",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stresssignal-e2e",
+      "database_id": "00000000-0000-4000-8000-000000000002",
+      "migrations_dir": "drizzle/d1"
+    }
+  ],
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "stresssignal-e2e"
+    }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "http://127.0.0.1:43101",
+    "CRON_SECRET": "e2e-local-secret",
+    "FRED_API_KEY": "e2e-synthetic-key"
+  }
+}

@@ -1,13 +1,9 @@
-import { compileMDX } from "next-mdx-remote/rsc";
 import type { ReactNode } from "react";
 import { z } from "zod";
-import fs from "node:fs/promises";
-import path from "node:path";
 
+import { ARTICLE_DOCUMENTS } from "./article-sources.generated";
 import { siteMeta } from "../market-risk-metadata";
 
-const articleDirectory = path.join(process.cwd(), "content", "articles");
-const articleFileExt = ".mdx";
 const slugRegex = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 const articleFrontmatterSchema = z.object({
@@ -40,33 +36,25 @@ function isValidSlug(slug: string): boolean {
   return slugRegex.test(slug);
 }
 
-function resolveArticlePath(slug: string): string | null {
+function resolveArticleSource(slug: string): {
+  slug: keyof typeof ARTICLE_DOCUMENTS;
+  document: (typeof ARTICLE_DOCUMENTS)[keyof typeof ARTICLE_DOCUMENTS];
+} | null {
   const cleanSlug = normalizeSlug(slug);
   if (!isValidSlug(cleanSlug)) {
     return null;
   }
 
-  const candidate = path.resolve(articleDirectory, `${cleanSlug}${articleFileExt}`);
-  const baseDir = path.resolve(articleDirectory);
-  if (!candidate.startsWith(`${baseDir}${path.sep}`)) {
+  if (!(cleanSlug in ARTICLE_DOCUMENTS)) {
     return null;
   }
 
-  return candidate;
+  const articleSlug = cleanSlug as keyof typeof ARTICLE_DOCUMENTS;
+  return { slug: articleSlug, document: ARTICLE_DOCUMENTS[articleSlug] };
 }
 
 export async function getAllArticleSlugs(): Promise<string[]> {
-  const directory = await fs.readdir(articleDirectory, { withFileTypes: true });
-
-  return directory
-    .filter(
-      (entry) =>
-        entry.isFile() &&
-        entry.name.endsWith(articleFileExt) &&
-        isValidSlug(entry.name.slice(0, -articleFileExt.length)),
-    )
-    .map((entry) => entry.name.slice(0, -articleFileExt.length))
-    .sort();
+  return Object.keys(ARTICLE_DOCUMENTS).sort();
 }
 
 function ensureDateString(value: string): string {
@@ -83,28 +71,20 @@ function parseArticleMetadata(frontmatter: unknown): ArticleFrontmatter {
 
 async function loadArticleByPath(
   slug: string,
-  filePath: string,
+  document: (typeof ARTICLE_DOCUMENTS)[keyof typeof ARTICLE_DOCUMENTS],
   includeContent: true,
 ): Promise<ArticleDocument>;
 async function loadArticleByPath(
   slug: string,
-  filePath: string,
+  document: (typeof ARTICLE_DOCUMENTS)[keyof typeof ARTICLE_DOCUMENTS],
   includeContent: false,
 ): Promise<ArticleMeta>;
 async function loadArticleByPath(
   slug: string,
-  filePath: string,
+  document: (typeof ARTICLE_DOCUMENTS)[keyof typeof ARTICLE_DOCUMENTS],
   includeContent: boolean,
 ): Promise<ArticleMeta | ArticleDocument> {
-  const source = await fs.readFile(filePath, "utf8");
-  const { frontmatter, content } = await compileMDX({
-    source,
-    options: {
-      parseFrontmatter: true,
-    },
-  });
-
-  const parsed = parseArticleMetadata(frontmatter);
+  const parsed = parseArticleMetadata(document.frontmatter);
 
   const article: ArticleMeta = {
     slug,
@@ -118,7 +98,7 @@ async function loadArticleByPath(
   if (includeContent) {
     return {
       ...article,
-      content,
+      content: document.body,
     };
   }
 
@@ -128,19 +108,12 @@ async function loadArticleByPath(
 export async function getArticleMetaBySlug(
   slug: string,
 ): Promise<ArticleMeta | null> {
-  const filePath = resolveArticlePath(slug);
-  if (!filePath) {
+  const articleSource = resolveArticleSource(slug);
+  if (!articleSource) {
     return null;
   }
 
-  try {
-    return await loadArticleByPath(normalizeSlug(slug), filePath, false);
-  } catch (error) {
-    if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
+  return loadArticleByPath(articleSource.slug, articleSource.document, false);
 }
 
 export async function getAllArticlesMeta(): Promise<ArticleMeta[]> {
@@ -162,19 +135,12 @@ export async function getAllArticlesMeta(): Promise<ArticleMeta[]> {
 export async function getArticleBySlug(
   slug: string,
 ): Promise<ArticleDocument | null> {
-  const filePath = resolveArticlePath(slug);
-  if (!filePath) {
+  const articleSource = resolveArticleSource(slug);
+  if (!articleSource) {
     return null;
   }
 
-  try {
-    return await loadArticleByPath(normalizeSlug(slug), filePath, true);
-  } catch (error) {
-    if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
+  return loadArticleByPath(articleSource.slug, articleSource.document, true);
 }
 
 export function formatArticleDate(value: string): string {

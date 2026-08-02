@@ -7,7 +7,7 @@ import {
   type PublicSourceSkippedObservation,
   fetchPublicSourceObservations,
 } from "../adapters/public-sources";
-import { db } from "../db/client";
+import { resolveDb, type AppDatabase } from "../db/client";
 import {
   indicatorSources,
   indicators,
@@ -22,6 +22,7 @@ import {
 
 export const PUBLIC_SOURCES_JOB_NAME = "sync-public-sources";
 export const PUBLIC_SOURCES_RUN_PROVIDER = "public_sources";
+const D1_OBSERVATION_WRITE_CHUNK_SIZE = 12;
 
 type SerializedError = {
   code: string;
@@ -107,12 +108,16 @@ const toDateString = (value: Date | string | null): string | null => {
   return value instanceof Date ? value.toISOString().slice(0, 10) : value;
 };
 
-const toIsoString = (value: Date | string | null): string | null => {
+const toIsoString = (value: Date | string | number | null): string | null => {
   if (value === null) {
     return null;
   }
 
-  return value instanceof Date ? value.toISOString() : value;
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return typeof value === "number" ? new Date(value).toISOString() : value;
 };
 
 const serializeError = (error: unknown): SerializedError => {
@@ -197,7 +202,7 @@ const buildResponse = (params: {
   };
 };
 
-const createSyncRunRecord = async (startedAt: Date) => {
+const createSyncRunRecord = async (db: AppDatabase, startedAt: Date) => {
   const inserted = await db
     .insert(syncRuns)
     .values({
@@ -217,6 +222,7 @@ const createSyncRunRecord = async (startedAt: Date) => {
 };
 
 const upsertObservationRows = async (
+  db: AppDatabase,
   payload: PublicSourceObservationsParseResult,
   source: PublicSourceRow,
 ): Promise<number> => {
@@ -227,35 +233,45 @@ const upsertObservationRows = async (
   const rows = payload.observations.map((item) => ({
     indicatorId: source.indicatorId,
     observationDate: item.date,
-    value: item.value.toString(),
+    value: item.value,
     rawPayload: item.raw,
     sourceProvider: source.sourceProvider,
     sourceExternalId: source.sourceExternalId,
   }));
 
-  const upserted = await db
-    .insert(observationsTable)
-    .values(rows)
-    .onConflictDoUpdate({
-      target: [
-        observationsTable.indicatorId,
-        observationsTable.sourceExternalId,
-        observationsTable.observationDate,
-      ],
-      set: {
-        value: sql`excluded.value`,
-        rawPayload: sql`excluded.raw_payload`,
-        sourceProvider: sql`excluded.source_provider`,
-        sourceExternalId: sql`excluded.source_external_id`,
-        fetchedAt: sql`now()`,
-      },
-    })
-    .returning({ id: observationsTable.id });
+  let upsertedCount = 0;
 
-  return upserted.length;
+  for (
+    let offset = 0;
+    offset < rows.length;
+    offset += D1_OBSERVATION_WRITE_CHUNK_SIZE
+  ) {
+    const upserted = await db
+      .insert(observationsTable)
+      .values(rows.slice(offset, offset + D1_OBSERVATION_WRITE_CHUNK_SIZE))
+      .onConflictDoUpdate({
+        target: [
+          observationsTable.indicatorId,
+          observationsTable.sourceExternalId,
+          observationsTable.observationDate,
+        ],
+        set: {
+          value: sql`excluded.value`,
+          rawPayload: sql`excluded.raw_payload`,
+          sourceProvider: sql`excluded.source_provider`,
+          sourceExternalId: sql`excluded.source_external_id`,
+          fetchedAt: sql`(unixepoch() * 1000)`,
+        },
+      })
+      .returning({ id: observationsTable.id });
+
+    upsertedCount += upserted.length;
+  }
+
+  return upsertedCount;
 };
 
-const fetchActivePublicSources = async (): Promise<PublicSourceRow[]> => {
+const fetchActivePublicSources = async (db: AppDatabase): Promise<PublicSourceRow[]> => {
   const modePredicates = PUBLIC_SOURCE_PROVIDER_FETCH_MODES.map((item) =>
     and(
       eq(indicatorSources.provider, item.provider),
@@ -297,11 +313,14 @@ const fetchActivePublicSources = async (): Promise<PublicSourceRow[]> => {
 
 export const runPublicSourcesSync = async ({
   now = new Date(),
+  database,
 }: {
   now?: Date;
+  database?: AppDatabase;
 } = {}): Promise<PublicSourcesSyncRunResponse> => {
+  const db = await resolveDb(database);
   const startedAt = now;
-  const runId = await createSyncRunRecord(startedAt);
+  const runId = await createSyncRunRecord(db, startedAt);
 
   if (!runId) {
     throw new Error("failed to create sync run record");
@@ -316,7 +335,7 @@ export const runPublicSourcesSync = async ({
   let runLevelError: SerializedError | null = null;
 
   try {
-    const activeSources = await fetchActivePublicSources();
+    const activeSources = await fetchActivePublicSources(db);
     activeSourceCount = activeSources.length;
 
     const latestRows = await db
@@ -325,7 +344,7 @@ export const runPublicSourcesSync = async ({
         sourceProvider: observationsTable.sourceProvider,
         sourceExternalId: observationsTable.sourceExternalId,
         latestObservationDate: sql<Date | string | null>`max(${observationsTable.observationDate})`,
-        lastFetchedAt: sql<Date | string | null>`max(${observationsTable.fetchedAt})`,
+        lastFetchedAt: sql<Date | string | number | null>`max(${observationsTable.fetchedAt})`,
       })
       .from(observationsTable)
       .where(inArray(observationsTable.sourceProvider, SUPPORTED_PROVIDERS))
@@ -426,7 +445,7 @@ export const runPublicSourcesSync = async ({
         fetchedCount += summary.requestedObservations;
         skippedCount += summary.skippedObservations;
 
-        const upserted = await upsertObservationRows(parsed, source);
+        const upserted = await upsertObservationRows(db, parsed, source);
         summary.upsertedObservations = upserted;
         upsertedCount += upserted;
       } catch (error) {

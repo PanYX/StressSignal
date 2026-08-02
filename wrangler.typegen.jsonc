@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "stresssignal-typegen",
+  "main": "tests/fixtures/d1-worker.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stresssignal-db",
+      "database_id": "682145ee-052a-4c94-8e68-5e30e4583964"
+    }
+  ],
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "stresssignal-typegen"
+    }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://stresssignal.app"
+  }
+}

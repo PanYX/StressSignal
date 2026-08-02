@@ -8,8 +8,12 @@ import {
   type CboeSkippedObservation,
   fetchCboeDailyPricesCsv,
 } from "../../../../../lib/adapters/cboe";
+import {
+  hasValidCronToken,
+  unauthorizedResponse,
+} from "../../../../../lib/api/route";
 import { DATA_CACHE_TAGS } from "../../../../../lib/db/cached-queries";
-import { db } from "../../../../../lib/db/client";
+import { getDb } from "../../../../../lib/db/client";
 import {
   indicatorSources,
   indicators,
@@ -24,7 +28,7 @@ import {
 
 const PROVIDER = "cboe" as const;
 const JOB_NAME = "sync-cboe";
-const AUTH_SCHEME = "bearer";
+const D1_OBSERVATION_WRITE_CHUNK_SIZE = 12;
 
 type SerializedError = {
   code: string;
@@ -76,29 +80,6 @@ type SyncRunResponse = {
   };
 };
 
-const unauthorizedResponse = () =>
-  NextResponse.json(
-    {
-      error: "unauthorized",
-      reason: "invalid or missing cron secret",
-    },
-    { status: 401 },
-  );
-
-const parseBearerToken = (authorizationHeader: string | null): string | null => {
-  if (!authorizationHeader) {
-    return null;
-  }
-
-  const normalized = authorizationHeader.trim();
-  if (!normalized.toLowerCase().startsWith(`${AUTH_SCHEME} `)) {
-    return null;
-  }
-
-  const token = normalized.slice(AUTH_SCHEME.length + 1).trim();
-  return token.length > 0 ? token : null;
-};
-
 const toDateString = (value: Date | string | null): string | null => {
   if (value === null) {
     return null;
@@ -107,12 +88,16 @@ const toDateString = (value: Date | string | null): string | null => {
   return value instanceof Date ? value.toISOString().slice(0, 10) : value;
 };
 
-const toIsoString = (value: Date | string | null): string | null => {
+const toIsoString = (value: Date | string | number | null): string | null => {
   if (value === null) {
     return null;
   }
 
-  return value instanceof Date ? value.toISOString() : value;
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return typeof value === "number" ? new Date(value).toISOString() : value;
 };
 
 const serializeError = (error: unknown): SerializedError => {
@@ -168,35 +153,47 @@ const upsertObservationRows = async (
   const rows = payload.observations.map((item) => ({
     indicatorId,
     observationDate: item.date,
-    value: item.value.toString(),
+    value: item.value,
     rawPayload: item.raw,
     sourceProvider: PROVIDER,
     sourceExternalId,
   }));
 
-  const upserted = await db
-    .insert(observationsTable)
-    .values(rows)
-    .onConflictDoUpdate({
-      target: [
-        observationsTable.indicatorId,
-        observationsTable.sourceExternalId,
-        observationsTable.observationDate,
-      ],
-      set: {
-        value: sql`excluded.value`,
-        rawPayload: sql`excluded.raw_payload`,
-        sourceProvider: sql`excluded.source_provider`,
-        sourceExternalId: sql`excluded.source_external_id`,
-        fetchedAt: sql`now()`,
-      },
-    })
-    .returning({ id: observationsTable.id });
+  const db = await getDb();
+  let upsertedCount = 0;
 
-  return upserted.length;
+  for (
+    let offset = 0;
+    offset < rows.length;
+    offset += D1_OBSERVATION_WRITE_CHUNK_SIZE
+  ) {
+    const upserted = await db
+      .insert(observationsTable)
+      .values(rows.slice(offset, offset + D1_OBSERVATION_WRITE_CHUNK_SIZE))
+      .onConflictDoUpdate({
+        target: [
+          observationsTable.indicatorId,
+          observationsTable.sourceExternalId,
+          observationsTable.observationDate,
+        ],
+        set: {
+          value: sql`excluded.value`,
+          rawPayload: sql`excluded.raw_payload`,
+          sourceProvider: sql`excluded.source_provider`,
+          sourceExternalId: sql`excluded.source_external_id`,
+          fetchedAt: sql`(unixepoch() * 1000)`,
+        },
+      })
+      .returning({ id: observationsTable.id });
+
+    upsertedCount += upserted.length;
+  }
+
+  return upsertedCount;
 };
 
 const createSyncRunRecord = async (startedAt: Date) => {
+  const db = await getDb();
   const inserted = await db
     .insert(syncRuns)
     .values({
@@ -255,13 +252,11 @@ const buildResponse = (params: {
 };
 
 export async function POST(request: NextRequest) {
-  const token = parseBearerToken(request.headers.get("authorization"));
-  const cronSecret = process.env.CRON_SECRET?.trim();
-
-  if (!cronSecret || !token || token !== cronSecret) {
+  if (!hasValidCronToken(request)) {
     return unauthorizedResponse();
   }
 
+  const db = await getDb();
   const startedAt = new Date();
   const runId = await createSyncRunRecord(startedAt);
 
@@ -310,7 +305,7 @@ export async function POST(request: NextRequest) {
         indicatorId: observationsTable.indicatorId,
         sourceExternalId: observationsTable.sourceExternalId,
         latestObservationDate: sql<Date | string | null>`max(${observationsTable.observationDate})`,
-        lastFetchedAt: sql<Date | string | null>`max(${observationsTable.fetchedAt})`,
+        lastFetchedAt: sql<Date | string | number | null>`max(${observationsTable.fetchedAt})`,
       })
       .from(observationsTable)
       .where(eq(observationsTable.sourceProvider, PROVIDER))

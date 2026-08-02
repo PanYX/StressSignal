@@ -8,8 +8,8 @@ import {
 } from "../../../../lib/api/schemas";
 import {
   badRequestResponse,
+  hasValidCronToken,
   internalErrorResponse,
-  parseBearerToken,
   unauthorizedResponse,
 } from "../../../../lib/api/route";
 
@@ -26,10 +26,7 @@ const REVALIDATE_TAGS = new Set<string>([
 const normalizeTag = (input: string) => input.trim();
 
 export async function POST(request: Request) {
-  const token = parseBearerToken(request.headers.get("authorization"));
-  const cronSecret = process.env.CRON_SECRET?.trim();
-
-  if (!cronSecret || !token || token !== cronSecret) {
+  if (!hasValidCronToken(request)) {
     return unauthorizedResponse();
   }
 

@@ -7,7 +7,7 @@ import {
   isLocale,
 } from "./lib/i18n/locales";
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const queryLocale = request.nextUrl.searchParams.get("lang");
   const cookieLocale = request.cookies.get(LOCALE_COOKIE)?.value;
   const locale = isLocale(queryLocale)

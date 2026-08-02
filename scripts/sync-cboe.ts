@@ -1,15 +1,16 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { fetchCboeDailyPricesCsv } from "../lib/adapters/cboe";
-import { closeDb, db } from "../lib/db/client";
+import type { AppDatabase } from "../lib/db/client";
 import {
   indicatorSources,
   indicators,
   observations as observationsTable,
 } from "../lib/db/schema";
+import { withRemoteD1 } from "./d1-runtime";
 
 const PROVIDER = "cboe";
-const BATCH_SIZE = 1000;
+const BATCH_SIZE = 12;
 
 const chunk = <T,>(items: T[], size: number): T[][] => {
   const output: T[][] = [];
@@ -19,7 +20,7 @@ const chunk = <T,>(items: T[], size: number): T[][] => {
   return output;
 };
 
-async function main() {
+async function syncCboe(db: AppDatabase) {
   const activeSources = await db
     .select({
       indicatorId: indicatorSources.indicatorId,
@@ -55,7 +56,7 @@ async function main() {
     const rows = parsed.observations.map((item) => ({
       indicatorId: source.indicatorId,
       observationDate: item.date,
-      value: item.value.toString(),
+      value: item.value,
       rawPayload: item.raw,
       sourceProvider: PROVIDER,
       sourceExternalId: source.sourceExternalId,
@@ -77,7 +78,7 @@ async function main() {
             rawPayload: sql`excluded.raw_payload`,
             sourceProvider: sql`excluded.source_provider`,
             sourceExternalId: sql`excluded.source_external_id`,
-            fetchedAt: sql`now()`,
+            fetchedAt: sql`(unixepoch() * 1000)`,
           },
         })
         .returning({ id: observationsTable.id });
@@ -108,11 +109,11 @@ async function main() {
   );
 }
 
-main()
-  .catch((error) => {
-    console.error("[sync-cboe] failed:", error);
-    process.exitCode = 1;
-  })
-  .finally(() => {
-    void closeDb();
-  });
+async function main() {
+  await withRemoteD1(syncCboe);
+}
+
+main().catch((error) => {
+  console.error("[sync-cboe] failed:", error);
+  process.exitCode = 1;
+});

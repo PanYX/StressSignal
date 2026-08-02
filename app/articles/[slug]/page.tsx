@@ -194,7 +194,7 @@ export default async function ArticleDetailPage({
             ))}
 
             {!articleCopy ? (
-              <section className="space-y-4 border-t border-slate-200 pt-4">
+              <section className="whitespace-pre-wrap border-t border-slate-200 pt-4 text-sm leading-7 text-slate-700">
                 {article.content}
               </section>
             ) : null}

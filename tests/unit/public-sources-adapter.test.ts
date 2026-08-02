@@ -5,6 +5,7 @@ import {
   fetchPublicSourceObservations,
   parseCboePutCallPayload,
   parseEdgmapAaiiSentimentHtml,
+  parseNaaimExposureTableHtml,
   parseNikkei225ViCsv,
 } from "../../lib/adapters/public-sources";
 
@@ -99,10 +100,39 @@ describe("public source adapter", () => {
     expect(parsed.skipped).toHaveLength(1);
   });
 
+  it("parses NAAIM's delayed public HTML table after workbook access moved", () => {
+    const parsed = parseNaaimExposureTableHtml(
+      `
+        <table>
+          <tbody>
+            <tr><td>04/29/2026</td><td class="text-end">93.79</td></tr>
+            <tr><td>04/22/2026</td><td class="text-end">94.15</td></tr>
+            <tr><td>invalid</td><td class="text-end">--</td></tr>
+          </tbody>
+        </table>
+      `,
+      "2026-04-23",
+    );
+
+    expect(parsed.transport).toBe("html_table_delayed");
+    expect(parsed.observations).toEqual([
+      {
+        date: "2026-04-29",
+        value: 93.79,
+        raw: {
+          date: "04/29/2026",
+          naaimNumber: "93.79",
+          access: "delayed_public_table",
+        },
+      },
+    ]);
+    expect(parsed.skipped).toHaveLength(1);
+  });
+
   it("routes only configured public provider/fetch-mode pairs", async () => {
     for (const expected of [
       { provider: "cboe", fetchMode: "next_rsc" },
-      { provider: "naaim", fetchMode: "xlsx" },
+      { provider: "naaim", fetchMode: "public_table" },
       { provider: "stoxx", fetchMode: "ajax_json" },
       { provider: "nse", fetchMode: "json" },
       { provider: "nikkei", fetchMode: "csv" },

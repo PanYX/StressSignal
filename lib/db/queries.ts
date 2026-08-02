@@ -12,7 +12,7 @@ import {
   type NumericSeriesPoint,
 } from "../indicators/compute";
 import { getSnapshotStateLabel } from "../indicators/labels";
-import { db } from "./client";
+import { getDb, resolveDb, type AppDatabase } from "./client";
 import {
   indicatorSources,
   indicatorSnapshots,
@@ -257,6 +257,7 @@ const dedupeSortedSources = (
 export async function getIndicatorSnapshotsWithSources(): Promise<
   IndicatorSnapshotWithSources[]
 > {
+  const db = await getDb();
   const rows = await db
     .select({
       id: indicators.id,
@@ -349,6 +350,7 @@ export async function getIndicatorSnapshotsWithSources(): Promise<
 export async function getIndicatorSnapshotWithSourcesBySlug(
   slug: string,
 ): Promise<IndicatorSnapshotWithSources | null> {
+  const db = await getDb();
   const rows = await db
     .select({
       id: indicators.id,
@@ -432,6 +434,7 @@ export async function getIndicatorSnapshotWithSourcesBySlug(
 }
 
 export async function getIndicatorSnapshots(): Promise<SnapshotPayload[]> {
+  const db = await getDb();
   const rows = await db
     .select({
       id: indicatorSnapshots.indicatorId,
@@ -464,6 +467,7 @@ export async function getIndicatorSnapshots(): Promise<SnapshotPayload[]> {
 export async function getIndicatorSnapshotBySlug(
   slug: string,
 ): Promise<SnapshotPayload | null> {
+  const db = await getDb();
   const rows = await db
     .select({
       id: indicatorSnapshots.indicatorId,
@@ -497,6 +501,7 @@ export async function getIndicatorHistory(
   slug: string,
   window: HistoryWindow = "1Y",
 ): Promise<ObservationPoint[]> {
+  const db = await getDb();
   const cutoff = cutoffDateFromWindow(window);
   const predicate = cutoff
     ? and(
@@ -594,6 +599,7 @@ export async function getIndicatorHistoryBySource(
   sourceExternalId: string,
   window: HistoryWindow = "1Y",
 ): Promise<HistorySeriesPoint[]> {
+  const db = await getDb();
   const cutoff = resolveCutoffDate(window);
   const filters = [
     eq(indicators.slug, slug),
@@ -636,6 +642,7 @@ export async function getIndicatorHistoryBySource(
 export async function getActiveIndicatorBySlug(
   slug: string,
 ): Promise<{ id: string; slug: string } | null> {
+  const db = await getDb();
   const rows = await db
     .select({ id: indicators.id, slug: indicators.slug })
     .from(indicators)
@@ -647,11 +654,13 @@ export async function getActiveIndicatorBySlug(
 
 export async function getObservationsForCompute(
   slugs: string[],
+  database?: AppDatabase,
 ): Promise<ObservationSeriesByIndicator> {
   if (slugs.length === 0) {
     return new Map();
   }
 
+  const db = await resolveDb(database);
   const rows = await db
     .select({
       slug: indicators.slug,

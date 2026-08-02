@@ -1,25 +1,25 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
-  boolean,
-  date,
   index,
   integer,
-  jsonb,
-  numeric,
-  pgTable,
+  real,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
-export const indicators = pgTable(
+const timestampMs = (name: string) =>
+  integer(name, { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`);
+
+export const indicators = sqliteTable(
   "indicators",
   {
-    id: uuid("id")
+    id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    slug: text("slug").notNull().unique(),
+    slug: text("slug").notNull(),
     name: text("name").notNull(),
     category: text("category").notNull(),
     description: text("description").notNull(),
@@ -27,8 +27,8 @@ export const indicators = pgTable(
     frequency: text("frequency").notNull(),
     status: text("status").notNull(),
     sourcePolicy: text("source_policy").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestampMs("created_at"),
+    updatedAt: timestampMs("updated_at"),
   },
   (table) => [
     uniqueIndex("indicators_slug_uq").on(table.slug),
@@ -38,24 +38,24 @@ export const indicators = pgTable(
   ],
 );
 
-export const indicatorSources = pgTable(
+export const indicatorSources = sqliteTable(
   "indicator_sources",
   {
-    id: uuid("id")
+    id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    indicatorId: uuid("indicator_id")
+    indicatorId: text("indicator_id")
       .notNull()
       .references(() => indicators.id, { onDelete: "cascade" }),
     provider: text("provider").notNull(),
     externalId: text("external_id").notNull(),
     fetchMode: text("fetch_mode").notNull(),
     sourceUrl: text("source_url").notNull(),
-    isPrimary: boolean("is_primary").notNull().default(false),
+    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
     licenseNote: text("license_note"),
-    active: boolean("active").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: timestampMs("created_at"),
+    updatedAt: timestampMs("updated_at"),
   },
   (table) => [
     index("indicator_sources_indicator_idx").on(table.indicatorId),
@@ -67,23 +67,23 @@ export const indicatorSources = pgTable(
   ],
 );
 
-export const observations = pgTable(
+export const observations = sqliteTable(
   "observations",
   {
-    id: uuid("id")
+    id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    indicatorId: uuid("indicator_id")
+    indicatorId: text("indicator_id")
       .notNull()
       .references(() => indicators.id, { onDelete: "cascade" }),
-    observationDate: date("observation_date").notNull(),
-    value: numeric("value", { precision: 20, scale: 10 }).notNull(),
-    rawPayload: jsonb("raw_payload").notNull(),
+    observationDate: text("observation_date").notNull(),
+    value: real("value").notNull(),
+    rawPayload: text("raw_payload", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(),
     sourceProvider: text("source_provider").notNull(),
     sourceExternalId: text("source_external_id").notNull(),
-    fetchedAt: timestamp("fetched_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    fetchedAt: timestampMs("fetched_at"),
   },
   (table) => [
     uniqueIndex("observations_indicator_date_uq").on(
@@ -99,57 +99,59 @@ export const observations = pgTable(
   ],
 );
 
-export const indicatorSnapshots = pgTable(
+export const indicatorSnapshots = sqliteTable(
   "indicator_snapshots",
   {
-    indicatorId: uuid("indicator_id")
+    indicatorId: text("indicator_id")
       .primaryKey()
       .references(() => indicators.id, { onDelete: "cascade" }),
-    latestValue: numeric("latest_value", { precision: 20, scale: 10 }),
-    latestDate: date("latest_date"),
-    change1d: numeric("change_1d", { precision: 20, scale: 10 }),
-    change5d: numeric("change_5d", { precision: 20, scale: 10 }),
-    change20d: numeric("change_20d", { precision: 20, scale: 10 }),
-    pctRank1y: numeric("pct_rank_1y", { precision: 10, scale: 6 }),
-    zscore1y: numeric("zscore_1y", { precision: 10, scale: 6 }),
+    latestValue: real("latest_value"),
+    latestDate: text("latest_date"),
+    change1d: real("change_1d"),
+    change5d: real("change_5d"),
+    change20d: real("change_20d"),
+    pctRank1y: real("pct_rank_1y"),
+    zscore1y: real("zscore_1y"),
     stateLabel: text("state_label"),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestampMs("updated_at"),
   },
   (table) => [index("indicator_snapshots_updated_idx").on(table.updatedAt)],
 );
 
-export const syncRuns = pgTable(
+export const syncRuns = sqliteTable(
   "sync_runs",
   {
-    id: uuid("id")
+    id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     provider: text("provider").notNull(),
     jobName: text("job_name").notNull(),
     status: text("status").notNull(),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     recordsUpserted: integer("records_upserted"),
     errorMessage: text("error_message"),
-    meta: jsonb("meta"),
+    meta: text("meta", { mode: "json" }).$type<Record<string, unknown>>(),
   },
   (table) => [index("sync_runs_status_started_idx").on(table.status, table.startedAt)],
 );
 
-export const dailyCommentaries = pgTable(
+export const dailyCommentaries = sqliteTable(
   "daily_commentaries",
   {
-    id: uuid("id")
+    id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    asOfDate: date("as_of_date").notNull(),
+    asOfDate: text("as_of_date").notNull(),
     scope: text("scope").notNull(),
     headline: text("headline").notNull(),
     summary: text("summary").notNull(),
     bodyMd: text("body_md").notNull(),
     model: text("model").notNull(),
-    inputsJson: jsonb("inputs_json").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    inputsJson: text("inputs_json", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    createdAt: timestampMs("created_at"),
   },
   (table) => [
     uniqueIndex("daily_commentaries_asof_scope_uq").on(

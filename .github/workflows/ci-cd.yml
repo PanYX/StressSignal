@@ -1,93 +1,26 @@
 name: CI-CD
 
-env:
-  GH_USER: "PanYX"
-  STAGING_HOST: "152.53.209.10"
-  STAGING_USER: "deployuser"
-  STAGING_SSH_PORT: "2222"
-  STAGING_DEPLOY_PATH: "/opt/stresssignal/staging"
-  PROD_HOST: "152.53.209.10"
-  PROD_USER: "deployuser"
-  PROD_SSH_PORT: "2222"
-  PROD_DEPLOY_PATH: "/opt/stresssignal/production"
-  NEXT_PUBLIC_SITE_URL_STAGING: "https://staging.stresssignal.app"
-  NEXT_PUBLIC_SITE_URL_PRODUCTION: "https://stresssignal.app"
-  ASSET_PREFIX_STAGING: "https://oss-dev.stresssignal.app/fe"
-  ASSET_PREFIX_PRODUCTION: "https://oss.stresssignal.app/fe"
-  R2_BUCKET_STAGING: "stresssignal-dev-assets"
-  R2_BUCKET_PRODUCTION: "stresssignal-assets"
-  HOST_BIND_IP: "127.0.0.1"
-  STAGING_HOST_PORT: "5014"
-  PROD_HOST_PORT: "3014"
-
 on:
   push:
     branches: [test, main]
+  pull_request:
+    branches: [test, main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: stresssignal-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  validate:
+    name: Validate D1 Worker
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/test' || github.ref == 'refs/heads/main'
-    permissions:
-      packages: write
-      contents: read
-    outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
-      image_name: ${{ steps.set_lc_name.outputs.image_name }}
-      deploy_env: ${{ steps.deploy_vars.outputs.deploy_env }}
-      next_public_site_url: ${{ steps.deploy_vars.outputs.next_public_site_url }}
-      host_port: ${{ steps.deploy_vars.outputs.host_port }}
-      asset_prefix: ${{ steps.deploy_vars.outputs.asset_prefix }}
-      r2_bucket: ${{ steps.deploy_vars.outputs.r2_bucket }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set deployment variables
-        id: deploy_vars
-        env:
-          NEXT_PUBLIC_SITE_URL_STAGING: ${{ env.NEXT_PUBLIC_SITE_URL_STAGING }}
-          NEXT_PUBLIC_SITE_URL_PRODUCTION: ${{ env.NEXT_PUBLIC_SITE_URL_PRODUCTION }}
-          ASSET_PREFIX_STAGING: ${{ env.ASSET_PREFIX_STAGING }}
-          ASSET_PREFIX_PRODUCTION: ${{ env.ASSET_PREFIX_PRODUCTION }}
-          R2_BUCKET_STAGING: ${{ env.R2_BUCKET_STAGING }}
-          R2_BUCKET_PRODUCTION: ${{ env.R2_BUCKET_PRODUCTION }}
-          STAGING_HOST_PORT: ${{ env.STAGING_HOST_PORT }}
-          PROD_HOST_PORT: ${{ env.PROD_HOST_PORT }}
-        run: |
-          set -euo pipefail
-
-          DEPLOY_ENV="production"
-          NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL_PRODUCTION}"
-          ASSET_PREFIX="${ASSET_PREFIX_PRODUCTION}"
-          HOST_PORT="${PROD_HOST_PORT}"
-
-          if [[ "${GITHUB_REF}" == "refs/heads/test" ]]; then
-            DEPLOY_ENV="staging"
-            NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL_STAGING}"
-            ASSET_PREFIX="${ASSET_PREFIX_STAGING}"
-            HOST_PORT="${STAGING_HOST_PORT}"
-          fi
-          ASSET_PREFIX="${ASSET_PREFIX%/}"
-
-          echo "deploy_env=${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
-          echo "next_public_site_url=${NEXT_PUBLIC_SITE_URL}" >> "$GITHUB_OUTPUT"
-          echo "host_port=${HOST_PORT}" >> "$GITHUB_OUTPUT"
-          echo "asset_prefix=${ASSET_PREFIX}" >> "$GITHUB_OUTPUT"
-
-          R2_BUCKET="${R2_BUCKET_PRODUCTION:-stresssignal-assets}"
-          if [[ "${DEPLOY_ENV}" == "staging" ]]; then
-            R2_BUCKET="${R2_BUCKET_STAGING:-stresssignal-dev-assets}"
-          fi
-          echo "r2_bucket=${R2_BUCKET}" >> "$GITHUB_OUTPUT"
-
-          if [[ -z "${ASSET_PREFIX}" ]]; then
-            echo "::error::ASSET_PREFIX_${DEPLOY_ENV^^} is missing."
-            exit 1
-          fi
-
-          ASSET_PREFIX="$ASSET_PREFIX" node -e "new URL(process.env.ASSET_PREFIX)" >/dev/null
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -103,190 +36,43 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify generated content and Cloudflare types
+        run: |
+          pnpm content:check
+          pnpm cf:typecheck
+
       - name: Lint
         run: pnpm lint
 
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+
       - name: Unit tests
-        env:
-          NEXT_PUBLIC_SITE_URL: ${{ steps.deploy_vars.outputs.next_public_site_url }}
         run: pnpm test:unit
 
-      - name: Set lowercase image name
-        id: set_lc_name
-        run: echo "image_name=$(echo 'ghcr.io/${{ github.repository }}/web' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - name: D1 integration tests
+        run: pnpm test:integration
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.set_lc_name.outputs.image_name }}
-          tags: |
-            type=sha,prefix=,suffix=,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          build-args: |
-            NEXT_PUBLIC_SITE_URL=${{ steps.deploy_vars.outputs.next_public_site_url }}
-            NEXT_PUBLIC_ASSET_PREFIX=${{ steps.deploy_vars.outputs.asset_prefix }}
-            NEXT_BUILD_ID=${{ steps.meta.outputs.version }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  package-artifacts:
-    name: Package deployment artifacts
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Package artifacts
-        run: |
-          set -euo pipefail
-          mkdir -p deployment-package/deploy/nginx
-          cp docker-compose.yml deployment-package/
-          cp docker-compose.staging.yml deployment-package/
-          cp docker-compose.production.yml deployment-package/
-          cp scripts/run_deployment.sh deployment-package/
-          cp deploy/nginx/stresssignal.app.conf deployment-package/deploy/nginx/
-          chmod +x deployment-package/run_deployment.sh
-          tar -czvf deploy.tar.gz -C deployment-package .
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: deployment-package
-          path: deploy.tar.gz
-          retention-days: 7
-
-  deploy-staging:
-    name: Deploy to staging
-    needs: [build, package-artifacts]
-    if: github.ref == 'refs/heads/test'
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies for database tasks
-        run: pnpm install --frozen-lockfile
-
-      - name: Run database migrations
+      - name: Build OpenNext Worker
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm run db:migrate
+          NEXT_PUBLIC_SITE_URL: https://stresssignal.app
+          STRESSSIGNAL_D1_REMOTE: "false"
+        run: pnpm exec opennextjs-cloudflare build
 
-      - name: Seed indicator metadata
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm seed:indicators
+      - name: Enforce Worker bundle budget
+        run: pnpm bundle:check
 
-      - name: Upload Next static assets to Cloudflare R2
-        env:
-          IMAGE: ${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}
-          GH_USER: ${{ env.GH_USER }}
-          GH_PAT: ${{ secrets.GH_PAT }}
-          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
-          R2_BUCKET: ${{ needs.build.outputs.r2_bucket }}
-          NEXT_PUBLIC_ASSET_PREFIX: ${{ needs.build.outputs.asset_prefix }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          set -euo pipefail
-
-          printf '%s' "$GH_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
-          docker pull "$IMAGE"
-
-          cid="$(docker create "$IMAGE")"
-          rm -rf .r2-next-static
-          docker cp "$cid:/app/.next/static" .r2-next-static
-          docker rm "$cid"
-
-          find .r2-next-static -type f -name '*.map' -delete
-
-          bash scripts/upload_r2_next_static.sh
-
-      - name: Download deployment artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-package
-
-      - name: Upload artifacts to server
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ env.STAGING_HOST }}
-          username: ${{ env.STAGING_USER }}
-          key: ${{ secrets.STAGING_KEY }}
-          port: ${{ env.STAGING_SSH_PORT }}
-          source: deploy.tar.gz
-          target: ${{ env.STAGING_DEPLOY_PATH }}
-
-      - name: Deploy staging
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.STAGING_HOST }}
-          username: ${{ env.STAGING_USER }}
-          key: ${{ secrets.STAGING_KEY }}
-          port: ${{ env.STAGING_SSH_PORT }}
-          script: |
-            set -euo pipefail
-            DEPLOY_PATH="${{ env.STAGING_DEPLOY_PATH }}"
-            cd "$DEPLOY_PATH"
-            tar -xzvf deploy.tar.gz
-            rm deploy.tar.gz
-
-            export GH_USER='${{ env.GH_USER }}'
-            export GH_PAT='${{ secrets.GH_PAT }}'
-            export NEXT_IMAGE='${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}'
-            export ENV='staging'
-            export NEXT_PUBLIC_SITE_URL='${{ needs.build.outputs.next_public_site_url }}'
-            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
-            export FRED_API_KEY='${{ secrets.FRED_API_KEY }}'
-            export CRON_SECRET='${{ secrets.CRON_SECRET }}'
-            export GOOGLE_ADSENSE_PUBLISHER_ID='${{ secrets.GOOGLE_ADSENSE_PUBLISHER_ID }}'
-            export HOST_BIND_IP='${{ env.HOST_BIND_IP }}'
-            export HOST_PORT='${{ needs.build.outputs.host_port }}'
-
-            ./run_deployment.sh
-
-  deploy-prod:
-    name: Deploy to production
-    needs: [build, package-artifacts]
-    if: github.ref == 'refs/heads/main'
+  deploy-production:
+    name: Deploy production Worker
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SITE_URL: https://stresssignal.app
+      STRESSSIGNAL_D1_REMOTE: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -302,83 +88,14 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install dependencies for database tasks
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm run db:migrate
+      - name: Apply D1 migrations
+        run: pnpm db:migrate
 
-      - name: Seed indicator metadata
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm seed:indicators
+      - name: Build OpenNext Worker
+        run: pnpm exec opennextjs-cloudflare build
 
-      - name: Upload Next static assets to Cloudflare R2
-        env:
-          IMAGE: ${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}
-          GH_USER: ${{ env.GH_USER }}
-          GH_PAT: ${{ secrets.GH_PAT }}
-          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
-          R2_BUCKET: ${{ needs.build.outputs.r2_bucket }}
-          NEXT_PUBLIC_ASSET_PREFIX: ${{ needs.build.outputs.asset_prefix }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          set -euo pipefail
-
-          printf '%s' "$GH_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
-          docker pull "$IMAGE"
-
-          cid="$(docker create "$IMAGE")"
-          rm -rf .r2-next-static
-          docker cp "$cid:/app/.next/static" .r2-next-static
-          docker rm "$cid"
-
-          find .r2-next-static -type f -name '*.map' -delete
-
-          bash scripts/upload_r2_next_static.sh
-
-      - name: Download deployment artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-package
-
-      - name: Upload artifacts to server
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ env.PROD_HOST }}
-          username: ${{ env.PROD_USER }}
-          key: ${{ secrets.PROD_KEY }}
-          port: ${{ env.PROD_SSH_PORT }}
-          source: deploy.tar.gz
-          target: ${{ env.PROD_DEPLOY_PATH }}
-
-      - name: Deploy production
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ env.PROD_HOST }}
-          username: ${{ env.PROD_USER }}
-          key: ${{ secrets.PROD_KEY }}
-          port: ${{ env.PROD_SSH_PORT }}
-          script: |
-            set -euo pipefail
-            DEPLOY_PATH="${{ env.PROD_DEPLOY_PATH }}"
-            cd "$DEPLOY_PATH"
-            tar -xzvf deploy.tar.gz
-            rm deploy.tar.gz
-
-            export GH_USER='${{ env.GH_USER }}'
-            export GH_PAT='${{ secrets.GH_PAT }}'
-            export NEXT_IMAGE='${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}'
-            export ENV='production'
-            export NEXT_PUBLIC_SITE_URL='${{ needs.build.outputs.next_public_site_url }}'
-            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
-            export FRED_API_KEY='${{ secrets.FRED_API_KEY }}'
-            export CRON_SECRET='${{ secrets.CRON_SECRET }}'
-            export GOOGLE_ADSENSE_PUBLISHER_ID='${{ secrets.GOOGLE_ADSENSE_PUBLISHER_ID }}'
-            export HOST_BIND_IP='${{ env.HOST_BIND_IP }}'
-            export HOST_PORT='${{ needs.build.outputs.host_port }}'
-
-            ./run_deployment.sh
+      - name: Deploy Worker
+        run: pnpm exec opennextjs-cloudflare deploy -- --keep-vars

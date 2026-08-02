@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 
@@ -19,6 +21,18 @@ export const parseBearerToken = (
 
   const token = normalized.slice(AUTH_SCHEME.length + 1).trim();
   return token.length > 0 ? token : null;
+};
+
+const secureSecretEqual = (left: string, right: string): boolean => {
+  const leftDigest = createHash("sha256").update(left).digest();
+  const rightDigest = createHash("sha256").update(right).digest();
+  return timingSafeEqual(leftDigest, rightDigest);
+};
+
+export const hasValidCronToken = (request: Request): boolean => {
+  const token = parseBearerToken(request.headers.get("authorization"));
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  return Boolean(cronSecret && token && secureSecretEqual(token, cronSecret));
 };
 
 export const unauthorizedResponse = () =>
@@ -71,4 +85,3 @@ export const internalErrorResponse = (error: unknown, code = "internal_error") =
     { status: 500 },
   );
 };
-

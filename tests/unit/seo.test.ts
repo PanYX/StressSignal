@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import sitemap from "../../app/sitemap";
 import { GET as adsTxt } from "../../app/ads.txt/route";
 import manifest from "../../app/manifest";
-import { proxy } from "../../proxy";
+import { middleware } from "../../middleware";
 import robots from "../../app/robots";
 import { hrefWithLocale } from "../../lib/i18n/locale-url";
 import { siteMeta } from "../../lib/market-risk-metadata";
@@ -21,6 +21,18 @@ import {
 } from "../../lib/seo/structured-data";
 
 const siteBase = siteMeta.siteUrl.replace(/\/$/, "");
+
+type OpenGraphTestView = {
+  type?: string;
+  url?: string | URL;
+  images?: { url?: string | URL } | Array<{ url?: string | URL }>;
+  publishedTime?: string;
+  modifiedTime?: string;
+};
+
+type TwitterTestView = {
+  images?: string | Array<string>;
+};
 
 describe("seo helpers", () => {
   afterEach(() => {
@@ -49,10 +61,19 @@ describe("seo helpers", () => {
 
     expect(metadata.title).toBe("Test Page");
     expect(metadata.alternates?.canonical).toBe(`${siteBase}/about`);
-    expect(metadata.openGraph?.type).toBe("website");
-    expect(metadata.openGraph?.url).toBe(`${siteBase}/about`);
-    expect(metadata.openGraph?.images?.[0]?.url).toBe("/opengraph-image");
-    expect(metadata.twitter?.images?.[0]).toBe("/twitter-image");
+    const openGraph = metadata.openGraph as OpenGraphTestView | undefined;
+    const twitter = metadata.twitter as TwitterTestView | undefined;
+    const openGraphImages = Array.isArray(openGraph?.images)
+      ? openGraph.images
+      : [openGraph?.images];
+    const twitterImages = Array.isArray(twitter?.images)
+      ? twitter.images
+      : [twitter?.images];
+
+    expect(openGraph?.type).toBe("website");
+    expect(openGraph?.url).toBe(`${siteBase}/about`);
+    expect(openGraphImages[0]?.url).toBe("/social-card.png");
+    expect(twitterImages[0]).toBe("/social-card.png");
   });
 
   it("marks non-default language query variants as noindex", () => {
@@ -87,9 +108,11 @@ describe("seo helpers", () => {
     });
 
     expect(metadata.title).toBe("Article Title");
-    expect(metadata.openGraph?.type).toBe("article");
-    expect(metadata.openGraph?.publishedTime).toBe("2026-05-28");
-    expect(metadata.openGraph?.modifiedTime).toBe("2026-05-28");
+    const openGraph = metadata.openGraph as OpenGraphTestView | undefined;
+
+    expect(openGraph?.type).toBe("article");
+    expect(openGraph?.publishedTime).toBe("2026-05-28");
+    expect(openGraph?.modifiedTime).toBe("2026-05-28");
   });
 
   it("buildBreadcrumbSchema serializes deterministic list items", () => {
@@ -100,9 +123,14 @@ describe("seo helpers", () => {
     ]);
 
     expect(schema["@type"]).toBe("BreadcrumbList");
-    expect(schema.itemListElement).toHaveLength(3);
-    expect(schema.itemListElement[2].position).toBe(3);
-    expect(schema.itemListElement[2].item).toBe(`${siteBase}/articles/what-is-vix`);
+    const items = schema.itemListElement as Array<{
+      position: number;
+      item: string;
+    }>;
+
+    expect(items).toHaveLength(3);
+    expect(items[2].position).toBe(3);
+    expect(items[2].item).toBe(`${siteBase}/articles/what-is-vix`);
   });
 
   it("structured-data blocks stay JSON-serializable", () => {
@@ -159,7 +187,7 @@ describe("seo helpers", () => {
 
   it("redirects explicit default language query URLs to clean English canonicals", () => {
     const request = new NextRequest(`${siteBase}/about?utm_source=test&lang=en`);
-    const response = proxy(request);
+    const response = middleware(request);
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(`${siteBase}/about?utm_source=test`);
@@ -207,7 +235,7 @@ describe("seo helpers", () => {
     expect(appManifest.name).toBe("StressSignal Market Risk Dashboard");
     expect(appManifest.short_name).toBe("StressSignal");
     expect(iconSources).toEqual(
-      expect.arrayContaining(["/icon", "/apple-icon", "/logo-mark.svg"]),
+      expect.arrayContaining(["/icon.png", "/apple-icon.png", "/logo-mark.svg"]),
     );
   });
 

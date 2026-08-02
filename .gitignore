@@ -16,10 +16,22 @@
 /test-results/
 /tests/e2e/.artifacts/
 /tests/e2e/.playwright-report/
+/tests/e2e/.e2e-runtime.json
+/tests/e2e/.wrangler-state/
 
 # next.js
 /.next/
+/.open-next/
 /out/
+
+# generated static brand assets
+/public/apple-icon.png
+/public/icon.png
+/public/social-card.png
+
+# Cloudflare local state and one-off database exports
+/.wrangler/
+/.d1-import/
 
 # production
 /build

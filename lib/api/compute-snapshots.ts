@@ -18,7 +18,7 @@ import {
 } from "../indicators/compute";
 import { getSnapshotStateLabel } from "../indicators/labels";
 import { getObservationsForCompute } from "../db/queries";
-import { db } from "../db/client";
+import { resolveDb, type AppDatabase } from "../db/client";
 import { indicators, indicatorSnapshots } from "../db/schema";
 
 export type RecomputedSnapshotRow = {
@@ -63,8 +63,7 @@ const SHORT_WINDOW_SLUGS = new Set([
 ]);
 const ACTIVE_STATUS = "active";
 
-const toDbNumeric = (value: number | null): string | null =>
-  value === null ? null : value.toString();
+const D1_SNAPSHOT_WRITE_CHUNK_SIZE = 8;
 
 const computeSeriesSnapshot = (
   points: NumericSeriesPoint[],
@@ -93,7 +92,7 @@ const computeSeriesSnapshot = (
   };
 };
 
-const buildSnapshotSeries = async (): Promise<BuildResult> => {
+const buildSnapshotSeries = async (db: AppDatabase): Promise<BuildResult> => {
   const activeIndicators = await db
     .select({ id: indicators.id, slug: indicators.slug })
     .from(indicators)
@@ -101,7 +100,7 @@ const buildSnapshotSeries = async (): Promise<BuildResult> => {
     .orderBy(indicators.slug);
 
   const activeSlugs = activeIndicators.map((item) => item.slug);
-  const observationsByIndicator = await getObservationsForCompute(activeSlugs);
+  const observationsByIndicator = await getObservationsForCompute(activeSlugs, db);
 
   const snapshotSeriesBySlug = new Map<string, SnapshotSeries>();
   const indicatorIdBySlug = new Map(activeIndicators.map((item) => [item.slug, item.id]));
@@ -380,43 +379,52 @@ const computeComposite = (snapshotSeriesBySlug: Map<string, SnapshotSeries>): nu
 };
 
 export async function recomputeIndicatorSnapshots(
-  options: { persist: boolean } = { persist: false },
+  options: { persist: boolean; database?: AppDatabase } = { persist: false },
 ): Promise<RecomputeSnapshotsResult> {
+  const db = await resolveDb(options.database);
   const computedAt = new Date();
-  const { snapshotRows, snapshotSeriesBySlug } = await buildSnapshotSeries();
+  const { snapshotRows, snapshotSeriesBySlug } = await buildSnapshotSeries(db);
   const compositeRiskScore = computeComposite(snapshotSeriesBySlug);
 
   if (options.persist && snapshotRows.length > 0) {
-    await db
-      .insert(indicatorSnapshots)
-      .values(
-        snapshotRows.map((row) => ({
+    for (
+      let offset = 0;
+      offset < snapshotRows.length;
+      offset += D1_SNAPSHOT_WRITE_CHUNK_SIZE
+    ) {
+      const rows = snapshotRows
+        .slice(offset, offset + D1_SNAPSHOT_WRITE_CHUNK_SIZE)
+        .map((row) => ({
           indicatorId: row.indicatorId,
-          latestValue: toDbNumeric(row.latestValue),
+          latestValue: row.latestValue,
           latestDate: row.latestDate,
-          change1d: toDbNumeric(row.change1d),
-          change5d: toDbNumeric(row.change5d),
-          change20d: toDbNumeric(row.change20d),
-          pctRank1y: toDbNumeric(row.pctRank1y),
-          zscore1y: toDbNumeric(row.zscore1y),
+          change1d: row.change1d,
+          change5d: row.change5d,
+          change20d: row.change20d,
+          pctRank1y: row.pctRank1y,
+          zscore1y: row.zscore1y,
           stateLabel: row.stateLabel,
           updatedAt: computedAt,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [indicatorSnapshots.indicatorId],
-        set: {
-          latestValue: sql`EXCLUDED.latest_value`,
-          latestDate: sql`EXCLUDED.latest_date`,
-          change1d: sql`EXCLUDED.change_1d`,
-          change5d: sql`EXCLUDED.change_5d`,
-          change20d: sql`EXCLUDED.change_20d`,
-          pctRank1y: sql`EXCLUDED.pct_rank_1y`,
-          zscore1y: sql`EXCLUDED.zscore_1y`,
-          stateLabel: sql`EXCLUDED.state_label`,
-          updatedAt: sql`EXCLUDED.updated_at`,
-        },
-      });
+        }));
+
+      await db
+        .insert(indicatorSnapshots)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: [indicatorSnapshots.indicatorId],
+          set: {
+            latestValue: sql`excluded.latest_value`,
+            latestDate: sql`excluded.latest_date`,
+            change1d: sql`excluded.change_1d`,
+            change5d: sql`excluded.change_5d`,
+            change20d: sql`excluded.change_20d`,
+            pctRank1y: sql`excluded.pct_rank_1y`,
+            zscore1y: sql`excluded.zscore_1y`,
+            stateLabel: sql`excluded.state_label`,
+            updatedAt: sql`excluded.updated_at`,
+          },
+        });
+    }
   }
 
   return {

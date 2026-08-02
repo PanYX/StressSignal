@@ -1,195 +1,124 @@
 # StressSignal Deployment
 
-StressSignal deploys as a Next.js standalone Docker image, following the same
-operating pattern as `privconvert`:
+StressSignal runs as an OpenNext application on Cloudflare Workers. Application
+data is accessed through the native D1 `DB` binding; there is no PostgreSQL URL
+in the application runtime.
 
-1. GitHub Actions verifies the app.
-2. GitHub Actions builds and publishes a Docker image to GHCR.
-3. GitHub Actions builds the app with an R2 asset prefix.
-4. GitHub Actions uploads `/_next/static` assets to Cloudflare R2 before
-   deploying the server container.
-5. GitHub Actions packages the compose, deployment script, and nginx config.
-6. The target server pulls the image and runs it with Docker Compose.
-7. The deploy script checks container startup before pruning old images.
+## Cloudflare resources
 
-Do not commit `.env.local`, production database URLs, API keys, or cron secrets.
+| Resource | Value |
+| --- | --- |
+| Worker | `stresssignal` |
+| Production route | `stresssignal.app/*` |
+| D1 binding | `DB` |
+| D1 database | `stresssignal-db` |
+| D1 database ID | `682145ee-052a-4c94-8e68-5e30e4583964` |
+| D1 jurisdiction | EU |
+| Wrangler config | `wrangler.jsonc` |
+| D1 migrations | `drizzle/d1` |
 
-## GitHub Actions
+The Worker bundle is generated under `.open-next/`, which is intentionally
+ignored by Git.
 
-### `CI-CD`
+Generated social and icon PNGs are created at build time and uploaded as
+Workers Static Assets. Keeping them out of the server bundle avoids shipping
+the `next/og` renderer, fonts, and image-rendering WASM in every Worker version.
 
-Runs on pushes to `test` and `main`, and can also be started manually.
+After building, verify the compressed Worker remains within the project's
+2.5 MiB regression budget:
 
-Branch mapping follows `privconvert`:
+```bash
+pnpm bundle:check
+```
 
-| Branch | Environment | Server path | App port |
-| --- | --- | --- | --- |
-| `test` | `staging` | `/opt/stresssignal/staging` | `5014` |
-| `main` | `production` | `/opt/stresssignal/production` | `3014` |
+This budget leaves headroom below the Workers Free compressed-script limit.
 
-Static Next.js chunks use the same R2 pattern as `privconvert`:
+## One-time Cloudflare setup
 
-| Branch | Asset prefix | R2 bucket |
-| --- | --- | --- |
-| `test` | `https://oss-dev.stresssignal.app/fe` | `stresssignal-dev-assets` |
-| `main` | `https://oss.stresssignal.app/fe` | `stresssignal-assets` |
+Wrangler must be authenticated and the following Worker secrets must be set in
+Cloudflare. They are not committed to the repository.
 
-The build job runs:
+```bash
+pnpm exec wrangler secret put CRON_SECRET
+pnpm exec wrangler secret put FRED_API_KEY
+```
+
+Optional runtime values such as `GOOGLE_ADSENSE_PUBLISHER_ID` can be added in
+the Cloudflare dashboard or with `wrangler secret put`. The public site origin
+is defined in `wrangler.jsonc` and is also supplied at build time so Next.js can
+inline canonical URLs.
+
+## Manual deployment
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm lint
-pnpm test:unit
+pnpm db:migrate
+NEXT_PUBLIC_SITE_URL=https://stresssignal.app pnpm run deploy
 ```
 
-Then it builds and pushes the Docker image to GHCR.
+`pnpm run deploy` builds the OpenNext Worker and deploys with `--keep-vars`, so
+runtime variables and secrets configured in Cloudflare are preserved.
 
-Before deployment, the target deploy job runs:
+The first Worker deployment creates a `workers.dev` endpoint. The production
+Worker route is declared in `wrangler.jsonc`, so deploys attach the Worker in
+front of the existing proxied `stresssignal.app` DNS record without replacing
+that record. The `workers.dev` endpoint remains enabled as a rollback and
+verification target.
 
-```bash
-pnpm run db:migrate
-pnpm seed:indicators
-```
+## GitHub Actions
 
-The workflow packages:
+The `CI-CD` workflow validates pushes and pull requests targeting `test` or
+`main`. It runs generated-file checks, lint, TypeScript, unit tests, local-D1
+integration tests, and an OpenNext Worker build.
 
-```text
-docker-compose.yml
-docker-compose.staging.yml
-docker-compose.production.yml
-scripts/run_deployment.sh
-deploy/nginx/stresssignal.app.conf
-```
+Only a push to `main` deploys. The `test` branch is validation-only until a
+separate staging D1 database is provisioned, preventing staging code from
+writing production data.
 
-Required repository secrets:
+Required GitHub production secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `STAGING_KEY` | Private SSH key for staging deploy |
-| `PROD_KEY` | Private SSH key for production deploy |
-| `GH_PAT` | Token the server uses to pull private GHCR images |
-| `DATABASE_URL` | PostgreSQL DSN used by migrations and runtime |
-| `CRON_SECRET` | Shared secret for internal sync/recompute/revalidate routes |
-| `FRED_API_KEY` | FRED API key, if live sync is enabled |
-| `GOOGLE_ADSENSE_PUBLISHER_ID` | Optional AdSense publisher ID for `/ads.txt` |
-| `R2_ENDPOINT_URL` | Cloudflare R2 account-level S3 endpoint, for example `https://<account-id>.r2.cloudflarestorage.com` |
-| `R2_ACCESS_KEY_ID` | R2 S3 access key used to upload Next static assets |
-| `R2_SECRET_ACCESS_KEY` | R2 S3 secret key used to upload Next static assets |
+| `CLOUDFLARE_API_TOKEN` | Apply D1 migrations and deploy the Worker |
+| `CLOUDFLARE_ACCOUNT_ID` | Select the Cloudflare account |
 
-Deployment constants are defined in `.github/workflows/ci-cd.yml`, matching
-the `privconvert` style: server host, SSH user, SSH port, deploy paths, public
-site URLs, asset prefixes, R2 buckets, and host ports. R2 secrets are required
-for deployment because the built app references the R2 asset prefix.
+Worker runtime secrets such as `CRON_SECRET` and `FRED_API_KEY` remain in
+Cloudflare and are preserved during CI deployments.
 
-## Server Runtime
+## Database migration and backup
 
-The compose files expect runtime environment variables, not committed env files.
-The GitHub deploy workflow passes them over SSH when invoking:
+Apply pending schema migrations before every deployment:
 
 ```bash
-./run_deployment.sh
+pnpm db:migrate
 ```
 
-Manual server deployment uses the same script:
+Create a recoverable D1 export before high-risk schema or data changes:
 
 ```bash
-ENV=production \
-NEXT_IMAGE=ghcr.io/<owner>/stresssignal:<sha> \
-GH_USER=<github-user> \
-GH_PAT=<ghcr-token> \
-NEXT_PUBLIC_SITE_URL=https://stresssignal.app \
-DATABASE_URL='<postgres-dsn>' \
-FRED_API_KEY='<fred-key>' \
-CRON_SECRET='<cron-secret>' \
-GOOGLE_ADSENSE_PUBLISHER_ID='<pub-id>' \
-HOST_BIND_IP=127.0.0.1 \
-HOST_PORT=3014 \
-./run_deployment.sh
+pnpm exec wrangler d1 export stresssignal-db \
+  --remote \
+  --output .d1-import/stresssignal-backup.sql
 ```
 
-The script pulls the image before stopping the existing container, then runs a
-local container health check against `http://localhost:3000`.
-
-## R2 Static Assets
-
-The Docker build receives `NEXT_PUBLIC_ASSET_PREFIX`, so rendered pages reference
-Next static chunks under:
-
-```text
-https://oss.stresssignal.app/fe/_next/static/...
-```
-
-During the deploy job, GitHub Actions pulls the built image, creates a
-temporary container, copies `/app/.next/static` into `.r2-next-static`, deletes
-source-map files, and runs:
+The one-off Neon exporter remains available during the rollback window:
 
 ```bash
-bash scripts/upload_r2_next_static.sh
+pnpm db:export-neon
 ```
 
-The upload script derives the R2 object prefix from the asset prefix and syncs
-files to:
+It consumes the source `DATABASE_URL` without printing it and writes an ignored
+SQL file under `.d1-import/`. `DATABASE_URL` is not used by the Worker.
 
-```text
-s3://stresssignal-assets/fe/_next/static
-```
-
-with immutable cache headers.
-
-## Nginx
-
-The nginx reverse-proxy config lives at:
-
-```text
-deploy/nginx/stresssignal.app.conf
-```
-
-It expects the app container to bind locally on `127.0.0.1:3014`, matching
-`docker-compose.production.yml`. It redirects HTTP and `www` traffic to:
-
-```text
-https://stresssignal.app
-```
-
-Expected certificate paths:
-
-```text
-/etc/nginx/ssl/stresssignal.app/stresssignal.app.pem
-/etc/nginx/ssl/stresssignal.app/stresssignal.app.key
-```
-
-Example server activation:
-
-```bash
-sudo ln -sf "$DEPLOY_PATH/deploy/nginx/stresssignal.app.conf" \
-  /etc/nginx/conf.d/stresssignal.app.conf
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-## Post-Deploy Checks
-
-After deployment:
+## Post-deploy checks
 
 ```bash
 curl -I https://stresssignal.app
+curl -sS https://stresssignal.app/api/v1/summary
+curl -sS https://stresssignal.app/api/v1/indicators
 curl -sS https://stresssignal.app/robots.txt
 curl -sS https://stresssignal.app/sitemap.xml
-curl -sS https://stresssignal.app/api/v1/summary
-curl -sS https://stresssignal.app | grep 'oss.stresssignal.app/fe/_next/static'
 ```
 
-Run live data sync separately or through your scheduler:
-
-```bash
-curl -X POST -H "Authorization: Bearer ${CRON_SECRET}" \
-  "https://stresssignal.app/api/internal/sync/fred"
-
-curl -X POST -H "Authorization: Bearer ${CRON_SECRET}" \
-  "https://stresssignal.app/api/internal/compute-snapshots"
-
-curl -X POST -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${CRON_SECRET}" \
-  -d '{"tags":["market-risk-dashboard","indicators"]}' \
-  "https://stresssignal.app/api/internal/revalidate"
-```
+Then verify the internal route authentication and run scheduled syncs through
+the existing scheduler using the `CRON_SECRET` bearer token.

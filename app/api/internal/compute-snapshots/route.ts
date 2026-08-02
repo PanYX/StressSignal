@@ -6,8 +6,8 @@ import {
   computeSnapshotsResponseSchema,
 } from "../../../../lib/api/schemas";
 import {
+  hasValidCronToken,
   internalErrorResponse,
-  parseBearerToken,
   unauthorizedResponse,
 } from "../../../../lib/api/route";
 import { DATA_CACHE_TAGS } from "../../../../lib/db/cached-queries";
@@ -32,10 +32,7 @@ const revalidateSnapshotCaches = (slugs: readonly string[]) => {
 };
 
 export async function POST(request: Request) {
-  const token = parseBearerToken(request.headers.get("authorization"));
-  const cronSecret = process.env.CRON_SECRET?.trim();
-
-  if (!cronSecret || !token || token !== cronSecret) {
+  if (!hasValidCronToken(request)) {
     return unauthorizedResponse();
   }
 

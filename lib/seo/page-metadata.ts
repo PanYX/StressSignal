@@ -64,7 +64,7 @@ export function buildPageMetadata({
       locale: locale ? openGraphLocaleByLocale[locale] : openGraphLocaleByLocale[DEFAULT_LOCALE],
       images: [
         {
-          url: "/opengraph-image",
+          url: "/social-card.png",
           width: 1200,
           height: 630,
           alt: imageAlt ?? title,
@@ -75,7 +75,7 @@ export function buildPageMetadata({
       card: "summary_large_image",
       title,
       description,
-      images: ["/twitter-image"],
+      images: ["/social-card.png"],
     },
     keywords: ["market risk", "volatility", "dashboard", "finance", "FRED"],
     robots: {
@@ -123,7 +123,7 @@ export function buildArticleMetadata({
       authors: authors ?? ["StressSignal 编辑部"],
       images: [
         {
-          url: "/opengraph-image",
+          url: "/social-card.png",
           width: 1200,
           height: 630,
           alt: title,
@@ -134,7 +134,7 @@ export function buildArticleMetadata({
       card: "summary_large_image",
       title,
       description,
-      images: ["/twitter-image"],
+      images: ["/social-card.png"],
     },
   };
 }

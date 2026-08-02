@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-const APP_PORT = Number.parseInt(process.env.E2E_APP_PORT ?? "3101", 10);
+const APP_PORT = Number.parseInt(process.env.E2E_APP_PORT ?? "43101", 10);
 
 export default defineConfig({
   testDir: "./tests/e2e",

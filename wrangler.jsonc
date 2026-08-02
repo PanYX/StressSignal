@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "stresssignal",
+  "main": ".open-next/worker.js",
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [
+    {
+      "pattern": "stresssignal.app/*",
+      "zone_name": "stresssignal.app"
+    }
+  ],
+  "minify": true,
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://stresssignal.app"
+  },
+  "secrets": {
+    "required": ["CRON_SECRET"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stresssignal-db",
+      "database_id": "682145ee-052a-4c94-8e68-5e30e4583964",
+      "migrations_dir": "drizzle/d1",
+      "remote": true
+    }
+  ],
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "stresssignal"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

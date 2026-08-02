@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/icon",
+        url: "/icon.png",
         sizes: "32x32",
         type: "image/png",
       },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     ],
     apple: [
       {
-        url: "/apple-icon",
+        url: "/apple-icon.png",
         sizes: "180x180",
         type: "image/png",
       },
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image",
+        url: "/social-card.png",
         width: 1200,
         height: 630,
       },
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${siteMeta.title} | ${siteMeta.brand}`,
     description: siteMeta.description,
-    images: ["/twitter-image"],
+    images: ["/social-card.png"],
   },
   robots: {
     index: true,
